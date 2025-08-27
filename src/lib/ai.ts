@@ -1,6 +1,9 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import type { GeneratedUISchema } from "@/types/ui";
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
+const OLLAMA_VISION_MODEL = process.env.OLLAMA_VISION_MODEL || OLLAMA_MODEL;
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest";
@@ -45,6 +48,30 @@ function buildStubUISchema(prompt: string, reason: string): GeneratedUISchema {
 export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedUISchema> {
   const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+
+  // Try Ollama first
+  try {
+    const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        format: "json",
+        stream: false,
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          { role: "user", content: `${prompt}\nReturn only JSON for GeneratedUISchema with a useful UI.` },
+        ],
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const content: string | undefined = data?.message?.content;
+      if (content) return JSON.parse(content) as GeneratedUISchema;
+    }
+  } catch (e) {
+    console.warn("Ollama error, attempting cloud providers or stub:", e);
+  }
 
   if (!hasOpenAI && !hasAnthropic) {
     return buildStubUISchema(prompt, "No AI provider is configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.");
@@ -100,6 +127,38 @@ export async function repromptUISchemaWithAI(params: {
   const { prompt, previousUI, overlayImageBase64 } = params;
   const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+
+  // Try Ollama first (vision model when image provided)
+  try {
+    const refineInstruction = [
+      "Refine the previous UI based on the user's sketch and prompt.",
+      "Preserve overall structure but apply the indicated changes (layout, emphasis, components).",
+      previousUI ? `Previous UI JSON: ${JSON.stringify(previousUI)}` : "",
+    ].join("\n");
+    const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: overlayImageBase64 ? OLLAMA_VISION_MODEL : OLLAMA_MODEL,
+        format: "json",
+        stream: false,
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          overlayImageBase64
+            ? { role: "user", content: `${prompt}\n${refineInstruction}`, images: [overlayImageBase64] }
+            : { role: "user", content: `${prompt}\n${refineInstruction}` },
+          { role: "user", content: "Return only JSON for GeneratedUISchema reflecting the edits." },
+        ],
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const content: string | undefined = data?.message?.content;
+      if (content) return JSON.parse(content) as GeneratedUISchema;
+    }
+  } catch (e) {
+    console.warn("Ollama reprompt error, attempting cloud providers or stub:", e);
+  }
 
   if (!hasOpenAI && !hasAnthropic) {
     return buildStubUISchema(prompt, "No AI provider is configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.");
