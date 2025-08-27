@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import GeneratedUIRenderer, { GeneratedUISchema } from "./GeneratedUIRenderer";
+import GeneratedUIRenderer from "./GeneratedUIRenderer";
+import type { GeneratedUISchema } from "@/types/ui";
 import SketchOverlay from "./SketchOverlay";
 
 type GenerateResponse = {
@@ -40,6 +41,7 @@ export default function UIBuilder() {
     try {
       const form = new FormData();
       form.append("prompt", prompt);
+      form.append("previousUI", JSON.stringify(ui));
       form.append("image", blob, "overlay.png");
       const res = await fetch("/api/reprompt", { method: "POST", body: form });
       if (!res.ok) throw new Error("Failed to reprompt with sketch");
