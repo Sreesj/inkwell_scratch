@@ -15,3 +15,7 @@ export type GeneratedUISchema = {
   root: UIElement;
 };
 
+export type GeneratedOutput =
+  | { kind: "ui"; ui: GeneratedUISchema }
+  | { kind: "code"; code: string };
+

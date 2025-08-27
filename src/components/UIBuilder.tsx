@@ -2,6 +2,7 @@
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import GeneratedUIRenderer from "./GeneratedUIRenderer";
+import CodePreview from "./CodePreview";
 import type { GeneratedUISchema } from "@/types/ui";
 import SketchOverlay from "./SketchOverlay";
 
@@ -12,6 +13,7 @@ type GenerateResponse = {
 export default function UIBuilder() {
   const [prompt, setPrompt] = useState<string>("");
   const [ui, setUi] = useState<GeneratedUISchema | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSketchMode, setIsSketchMode] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -27,8 +29,14 @@ export default function UIBuilder() {
         body: JSON.stringify({ prompt }),
       });
       if (!res.ok) throw new Error("Failed to generate UI");
-      const data: GenerateResponse = await res.json();
-      setUi(data.ui);
+      const data = await res.json();
+      if (data.code) {
+        setCode(data.code);
+        setUi(null);
+      } else {
+        setUi((data as GenerateResponse).ui);
+        setCode(null);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -45,8 +53,14 @@ export default function UIBuilder() {
       form.append("image", blob, "overlay.png");
       const res = await fetch("/api/reprompt", { method: "POST", body: form });
       if (!res.ok) throw new Error("Failed to reprompt with sketch");
-      const data: GenerateResponse = await res.json();
-      setUi(data.ui);
+      const data = await res.json();
+      if (data.code) {
+        setCode(data.code);
+        setUi(null);
+      } else {
+        setUi((data as GenerateResponse).ui);
+        setCode(null);
+      }
       setIsSketchMode(false);
     } catch (err) {
       console.error(err);
@@ -116,7 +130,7 @@ export default function UIBuilder() {
 
           {/* Rendered UI */}
           <div className="absolute inset-0 overflow-auto p-6">
-            <GeneratedUIRenderer ui={ui} />
+            {code ? <CodePreview code={code} className="w-full h-full rounded-md border border-black/10 dark:border-white/15" /> : <GeneratedUIRenderer ui={ui} />}
           </div>
 
           {/* Sketch overlay */}

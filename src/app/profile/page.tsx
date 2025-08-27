@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import GeneratedUIRenderer from "@/components/GeneratedUIRenderer";
+import CodePreview from "@/components/CodePreview";
 import type { GeneratedUISchema } from "@/types/ui";
 
 export default async function ProfilePage() {
@@ -16,7 +17,11 @@ export default async function ProfilePage() {
           {gens.map((g) => (
             <div key={g.id} className="rounded-xl border border-black/10 dark:border-white/15 p-4">
               <div className="text-xs text-gray-500 mb-2">{g.createdAt.toISOString()}</div>
-              <GeneratedUIRenderer ui={g.uiJson as unknown as GeneratedUISchema} />
+              {(() => {
+                const j = g.uiJson as any;
+                if (j?.kind === "code") return <CodePreview code={j.code} className="w-full h-[420px]" />;
+                return <GeneratedUIRenderer ui={(j?.kind === "ui" ? j.ui : j) as GeneratedUISchema} />;
+              })()}
             </div>
           ))}
         </div>

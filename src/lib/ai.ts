@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import type { GeneratedUISchema } from "@/types/ui";
+import type { GeneratedUISchema, GeneratedOutput } from "@/types/ui";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
 const OLLAMA_VISION_MODEL = process.env.OLLAMA_VISION_MODEL || OLLAMA_MODEL;
@@ -45,7 +45,12 @@ function buildStubUISchema(prompt: string, reason: string): GeneratedUISchema {
   };
 }
 
-export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedUISchema> {
+function wantsCode(prompt: string): boolean {
+  if (process.env.OLLAMA_OUTPUT === "code") return true;
+  return /code|html|css|javascript|react|component/i.test(prompt);
+}
+
+export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedUISchema | GeneratedOutput> {
   const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
 
@@ -67,7 +72,12 @@ export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedU
     if (res.ok) {
       const data = await res.json();
       const content: string | undefined = data?.message?.content;
-      if (content) return JSON.parse(content) as GeneratedUISchema;
+      if (content) {
+        if (wantsCode(prompt)) {
+          return { kind: "code", code: content } satisfies GeneratedOutput as GeneratedOutput;
+        }
+        return JSON.parse(content) as GeneratedUISchema;
+      }
     }
   } catch (e) {
     console.warn("Ollama error, attempting cloud providers or stub:", e);
@@ -90,6 +100,7 @@ export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedU
         ],
       });
       const content = completion.choices[0]?.message?.content || "{}";
+      if (wantsCode(prompt)) return { kind: "code", code: content };
       return JSON.parse(content) as GeneratedUISchema;
     } catch (e) {
       console.warn("OpenAI error, attempting Anthropic or stub:", e);
@@ -110,12 +121,14 @@ export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedU
         ],
       });
       const text = msg.content[0]?.type === "text" ? (msg.content[0].text as string) : "{}";
+      if (wantsCode(prompt)) return { kind: "code", code: text };
       return JSON.parse(text) as GeneratedUISchema;
     } catch (e) {
       console.warn("Anthropic error, returning stub:", e);
     }
   }
 
+  if (wantsCode(prompt)) return { kind: "code", code: "<div style=\"padding:16px\">Stub code output (provider unavailable)</div>" };
   return buildStubUISchema(prompt, "Provider error or rate limit. Returned local stub UI.");
 }
 
@@ -123,7 +136,7 @@ export async function repromptUISchemaWithAI(params: {
   prompt: string;
   previousUI?: GeneratedUISchema | null;
   overlayImageBase64?: string | null;
-}): Promise<GeneratedUISchema> {
+}): Promise<GeneratedUISchema | GeneratedOutput> {
   const { prompt, previousUI, overlayImageBase64 } = params;
   const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
@@ -154,7 +167,10 @@ export async function repromptUISchemaWithAI(params: {
     if (res.ok) {
       const data = await res.json();
       const content: string | undefined = data?.message?.content;
-      if (content) return JSON.parse(content) as GeneratedUISchema;
+      if (content) {
+        if (wantsCode(prompt)) return { kind: "code", code: content };
+        return JSON.parse(content) as GeneratedUISchema;
+      }
     }
   } catch (e) {
     console.warn("Ollama reprompt error, attempting cloud providers or stub:", e);
@@ -189,6 +205,7 @@ export async function repromptUISchemaWithAI(params: {
         ],
       });
       const contentOut = completion.choices[0]?.message?.content || "{}";
+      if (wantsCode(prompt)) return { kind: "code", code: contentOut };
       return JSON.parse(contentOut) as GeneratedUISchema;
     } catch (e) {
       console.warn("OpenAI reprompt error, attempting Anthropic or stub:", e);
@@ -210,12 +227,14 @@ export async function repromptUISchemaWithAI(params: {
         ],
       });
       const text = msg.content[0]?.type === "text" ? (msg.content[0].text as string) : "{}";
+      if (wantsCode(prompt)) return { kind: "code", code: text };
       return JSON.parse(text) as GeneratedUISchema;
     } catch (e) {
       console.warn("Anthropic reprompt error, returning stub:", e);
     }
   }
 
+  if (wantsCode(prompt)) return { kind: "code", code: "<div>Stub code (reprompt)</div>" };
   return buildStubUISchema(prompt, "Provider error or rate limit on reprompt. Returned local stub UI.");
 }
 
