@@ -13,7 +13,8 @@
     "react-dom": "19.1.0",
     "next": "15.5.2",
     "openai": "^4.63.0",
-    "@anthropic-ai/sdk": "^0.60.0"
+    "@anthropic-ai/sdk": "^0.60.0",
+    "@prisma/client": "^5.19.1"
   },
   "devDependencies": {
     "typescript": "^5",
@@ -24,6 +25,7 @@
     "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "@eslint/eslintrc": "^3"
+    "@eslint/eslintrc": "^3",
+    "prisma": "^5.19.1"
   }
 }

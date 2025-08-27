@@ -60,7 +60,10 @@ export default function UIBuilder() {
           <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black text-xs font-bold">I</span>
           <span className="text-sm font-semibold">Inkwell</span>
         </div>
-        <div className="text-xs text-gray-500">Sketch-to-UI Builder</div>
+        <div className="flex items-center gap-4">
+          <a href="/profile" className="text-xs hover:underline">Profile</a>
+          <div className="text-xs text-gray-500">Sketch-to-UI Builder</div>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-[420px_1fr] gap-4 p-4 sm:p-6 md:p-8">

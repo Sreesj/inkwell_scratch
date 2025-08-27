@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repromptUISchemaWithAI } from "@/lib/ai";
 import type { GeneratedUISchema } from "@/types/ui";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,11 @@ export async function POST(req: NextRequest) {
 
     const previousUI = previousUIString && previousUIString !== "null" ? (JSON.parse(previousUIString) as GeneratedUISchema) : null;
     const ui = await repromptUISchemaWithAI({ prompt, previousUI, overlayImageBase64 });
+    try {
+      await prisma.generation.create({ data: { prompt, uiJson: ui as unknown as object } });
+    } catch (e) {
+      console.warn("DB insert failed (reprompt)", e);
+    }
     return NextResponse.json({ ui });
   } catch (err: unknown) {
     console.error("/api/reprompt error", err);
