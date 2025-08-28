@@ -56,9 +56,16 @@ export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedU
 
   // Try Ollama first
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.OLLAMA_API_KEY) headers["Authorization"] = `Bearer ${process.env.OLLAMA_API_KEY}`;
+    if (process.env.OLLAMA_HEADERS) {
+      try {
+        Object.assign(headers, JSON.parse(process.env.OLLAMA_HEADERS));
+      } catch {}
+    }
     const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         format: "json",
@@ -148,9 +155,16 @@ export async function repromptUISchemaWithAI(params: {
       "Preserve overall structure but apply the indicated changes (layout, emphasis, components).",
       previousUI ? `Previous UI JSON: ${JSON.stringify(previousUI)}` : "",
     ].join("\n");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.OLLAMA_API_KEY) headers["Authorization"] = `Bearer ${process.env.OLLAMA_API_KEY}`;
+    if (process.env.OLLAMA_HEADERS) {
+      try {
+        Object.assign(headers, JSON.parse(process.env.OLLAMA_HEADERS));
+      } catch {}
+    }
     const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         model: overlayImageBase64 ? OLLAMA_VISION_MODEL : OLLAMA_MODEL,
         format: "json",
