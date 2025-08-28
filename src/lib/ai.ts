@@ -96,7 +96,10 @@ export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedU
 
   if (hasOpenAI) {
     try {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const client = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL || undefined,
+      });
       const completion = await client.chat.completions.create({
         model: OPENAI_MODEL,
         response_format: { type: "json_object" },
@@ -202,7 +205,10 @@ export async function repromptUISchemaWithAI(params: {
 
   if (hasOpenAI) {
     try {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const client = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL || undefined,
+      });
       const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
         { type: "text", text: `${prompt}\n${refineInstruction}` },
       ];
