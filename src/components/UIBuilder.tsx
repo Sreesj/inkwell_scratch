@@ -111,7 +111,7 @@ export default function UIBuilder() {
         </div>
 
         {/* Right: Preview with overlay */}
-        <div className="relative rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-neutral-950 overflow-hidden" ref={containerRef}>
+        <div className="relative rounded-xl border border-black/10 dark:border-white/15 bg-white overflow-hidden shadow-sm" ref={containerRef}>
           {/* Toolbar */}
           {canReprompt && (
             <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
@@ -129,7 +129,7 @@ export default function UIBuilder() {
           )}
 
           {/* Rendered UI */}
-          <div className="absolute inset-0 overflow-auto p-6">
+          <div className="absolute inset-0 overflow-auto p-6 bg-white text-neutral-900">
             {code ? <CodePreview code={code} className="w-full h-full rounded-md border border-black/10 dark:border-white/15" /> : <GeneratedUIRenderer ui={ui} />}
           </div>
 
