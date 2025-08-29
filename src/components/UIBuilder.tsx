@@ -30,11 +30,25 @@ export default function UIBuilder() {
       });
       if (!res.ok) throw new Error("Failed to generate UI");
       const data = await res.json();
-      if (data.code) {
+      // Normalize: if code contains JSON, parse and render as UI
+      if (data.code && typeof data.code === "string") {
+        const trimmed: string = data.code.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            const schema: GeneratedUISchema = parsed.root ? parsed : { root: parsed };
+            setUi(schema);
+            setCode(null);
+            return;
+          } catch {
+            // fall through to render as code
+          }
+        }
         setCode(data.code);
         setUi(null);
-      } else {
-        setUi((data as GenerateResponse).ui);
+      } else if (data.ui) {
+        const schema: GeneratedUISchema = data.ui.root ? data.ui : { root: data.ui };
+        setUi(schema);
         setCode(null);
       }
     } catch (err) {
@@ -54,11 +68,23 @@ export default function UIBuilder() {
       const res = await fetch("/api/reprompt", { method: "POST", body: form });
       if (!res.ok) throw new Error("Failed to reprompt with sketch");
       const data = await res.json();
-      if (data.code) {
+      if (data.code && typeof data.code === "string") {
+        const trimmed: string = data.code.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            const schema: GeneratedUISchema = parsed.root ? parsed : { root: parsed };
+            setUi(schema);
+            setCode(null);
+            setIsSketchMode(false);
+            return;
+          } catch {}
+        }
         setCode(data.code);
         setUi(null);
-      } else {
-        setUi((data as GenerateResponse).ui);
+      } else if (data.ui) {
+        const schema: GeneratedUISchema = data.ui.root ? data.ui : { root: data.ui };
+        setUi(schema);
         setCode(null);
       }
       setIsSketchMode(false);
