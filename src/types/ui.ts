@@ -8,6 +8,7 @@ export type UIElement = {
   text?: string;
   placeholder?: string;
   src?: string;
+  href?: string;
   children?: UIElement[];
 };
 

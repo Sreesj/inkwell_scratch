@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { repromptUISchemaWithAI } from "@/lib/ai";
 import type { GeneratedUISchema } from "@/types/ui";
 import { prisma } from "@/lib/db";
+import type { GeneratedOutput } from "@/types/ui";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,12 +22,17 @@ export async function POST(req: NextRequest) {
     const previousUI = previousUIString && previousUIString !== "null" ? (JSON.parse(previousUIString) as GeneratedUISchema) : null;
     const out = await repromptUISchemaWithAI({ prompt, previousUI, overlayImageBase64 });
     try {
-      const uiJson = (out as any)?.kind === "code" ? { kind: "code", code: (out as any).code } : { kind: "ui", ui: out };
-      await prisma.generation.create({ data: { prompt, uiJson: uiJson as unknown as object } });
+      const json: GeneratedOutput = (out as GeneratedOutput).kind
+        ? (out as GeneratedOutput)
+        : ({ kind: "ui", ui: out as GeneratedUISchema } as GeneratedOutput);
+      await prisma.generation.create({ data: { prompt, uiJson: json as unknown as object } });
     } catch (e) {
       console.warn("DB insert failed (reprompt)", e);
     }
-    return NextResponse.json((out as any)?.kind === "code" ? { code: (out as any).code } : { ui: out });
+    const result: GeneratedOutput = (out as GeneratedOutput).kind
+      ? (out as GeneratedOutput)
+      : ({ kind: "ui", ui: out as GeneratedUISchema } as GeneratedOutput);
+    return NextResponse.json(result.kind === "code" ? { code: result.code } : { ui: result.ui });
   } catch (err: unknown) {
     console.error("/api/reprompt error", err);
     const message = err instanceof Error ? err.message : "Internal error";

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateUISchemaWithAI } from "@/lib/ai";
 import { prisma } from "@/lib/db";
+import type { GeneratedOutput, GeneratedUISchema } from "@/types/ui";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,12 +11,17 @@ export async function POST(req: NextRequest) {
     const out = await generateUISchemaWithAI(prompt);
     // Anonymous user for now (null userId). Will replace with StackAuth.
     try {
-      const uiJson = (out as any)?.kind === "code" ? { kind: "code", code: (out as any).code } : { kind: "ui", ui: out };
-      await prisma.generation.create({ data: { prompt, uiJson: uiJson as unknown as object } });
+      const json: GeneratedOutput = (out as GeneratedOutput).kind
+        ? (out as GeneratedOutput)
+        : ({ kind: "ui", ui: out as GeneratedUISchema } as GeneratedOutput);
+      await prisma.generation.create({ data: { prompt, uiJson: json as unknown as object } });
     } catch (e) {
       console.warn("DB insert failed (generate)", e);
     }
-    return NextResponse.json((out as any)?.kind === "code" ? { code: (out as any).code } : { ui: out });
+    const result: GeneratedOutput = (out as GeneratedOutput).kind
+      ? (out as GeneratedOutput)
+      : ({ kind: "ui", ui: out as GeneratedUISchema } as GeneratedOutput);
+    return NextResponse.json(result.kind === "code" ? { code: result.code } : { ui: result.ui });
   } catch (err: unknown) {
     console.error("/api/generate error", err);
     const message = err instanceof Error ? err.message : "Internal error";

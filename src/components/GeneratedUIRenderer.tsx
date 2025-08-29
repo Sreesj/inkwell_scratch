@@ -20,17 +20,18 @@ export default function GeneratedUIRenderer({ ui, onAction }: Props) {
   return <div className="w-full h-full">{renderElement(coerceElement(ui.root), onAction)}</div>;
 }
 
-function coerceElement(e: any): UIElement {
+function coerceElement(e: unknown): UIElement {
   // If type is missing, infer from fields
-  if (e && typeof e === "object" && !e.type) {
-    if (typeof e.text === "string" && e.href) {
-      return { ...e, type: "text" } as UIElement;
+  if (e && typeof e === "object" && !(e as UIElement).type) {
+    const maybe = e as Partial<UIElement> & { [k: string]: unknown };
+    if (typeof maybe.text === "string" && maybe.href) {
+      return { ...(maybe as object), type: "text" } as UIElement;
     }
-    if (typeof e.text === "string") {
-      return { ...e, type: "text" } as UIElement;
+    if (typeof maybe.text === "string") {
+      return { ...(maybe as object), type: "text" } as UIElement;
     }
-    if (e.children) {
-      return { ...e, type: "container" } as UIElement;
+    if (maybe.children) {
+      return { ...(maybe as object), type: "container" } as UIElement;
     }
   }
   return e as UIElement;
@@ -62,7 +63,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
       );
     }
     case "text": {
-      const asLink = (element as any).href as string | undefined;
+      const asLink = element.href as string | undefined;
       if (asLink) {
         return (
           <a key={key} href={asLink} className={element.className} style={element.style}>
