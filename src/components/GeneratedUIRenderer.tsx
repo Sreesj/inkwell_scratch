@@ -90,15 +90,16 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
     }
     case "image": {
       // Use standard img for flexibility; parent can place Next/Image if needed
-      return (
-        <img
-          key={key}
-          src={element.src && element.src.trim() ? element.src : "/placeholder.svg"}
-          alt={element.text ?? "image"}
-          className={element.className}
-          style={element.style}
-        />
-      );
+      // Map common model outputs to working routes/assets
+      const src = (() => {
+        const raw = (element.src ?? "").trim();
+        if (!raw) return "/images/asset.svg";
+        // Map /images/*.jpg|png to our dynamic /images/[name]
+        const m = raw.match(/\/images\/(.+?)(\.[a-z0-9]+)?$/i);
+        if (m) return `/images/${m[1]}`;
+        return raw;
+      })();
+      return <img key={key} src={src} alt={element.text ?? "image"} className={element.className} style={element.style} />;
     }
     case "input": {
       return (
