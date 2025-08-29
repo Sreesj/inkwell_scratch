@@ -93,11 +93,17 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
       // Map common model outputs to working routes/assets
       const src = (() => {
         const raw = (element.src ?? "").trim();
-        if (!raw) return "/images/asset.svg";
-        // Map /images/*.jpg|png to our dynamic /images/[name]
-        const m = raw.match(/\/images\/(.+?)(\.[a-z0-9]+)?$/i);
+        if (!raw) return "/images/placeholder";
+        // Allow remote URLs as-is
+        if (/^https?:\/\//i.test(raw)) return raw;
+        // If already /images/name or /images/name.ext -> /images/name
+        const m = raw.match(/\/?images\/(.+?)(\.[a-z0-9]+)?$/i);
         if (m) return `/images/${m[1]}`;
-        return raw;
+        // Otherwise take the filename (strip extension) and serve from /images/[name]
+        const parts = raw.split("/").filter(Boolean);
+        const fname = parts[parts.length - 1] ?? "placeholder";
+        const nameOnly = fname.replace(/\.[a-z0-9]+$/i, "");
+        return `/images/${nameOnly}`;
       })();
       return <img key={key} src={src} alt={element.text ?? "image"} className={element.className} style={element.style} />;
     }
