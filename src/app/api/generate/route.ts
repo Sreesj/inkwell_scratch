@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const prompt: string = body?.prompt ?? "";
     if (!prompt) return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
-    const out = await generateUISchemaWithAI(prompt);
+    const imageUrl: string | undefined = body?.imageUrl ?? undefined;
+    const out = await generateUISchemaWithAI(prompt, { imageUrl });
     // Anonymous user for now (null userId). Will replace with StackAuth.
     try {
       const json: GeneratedOutput = (out as GeneratedOutput).kind

@@ -2,10 +2,10 @@ import type { GeneratedUISchema, GeneratedOutput } from "@/types/ui";
 import { GeminiService } from "@/lib/services/gemini";
 import { MagnusService } from "@/lib/services/magnus";
 
-export async function generateUISchemaWithAI(prompt: string): Promise<GeneratedUISchema | GeneratedOutput> {
+export async function generateUISchemaWithAI(prompt: string, opts?: { imageUrl?: string }): Promise<GeneratedUISchema | GeneratedOutput> {
   const gemini = new GeminiService();
   try {
-    const html = await gemini.generateUI(prompt);
+    const html = await gemini.generateUI(prompt, { imageUrl: opts?.imageUrl });
     return { kind: "code", code: html };
   } catch (e) {
     console.warn("Gemini error, returning fallback HTML:", e);
