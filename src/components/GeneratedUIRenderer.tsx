@@ -37,13 +37,26 @@ function coerceElement(e: unknown): UIElement {
   return e as UIElement;
 }
 
+function toCssStyle(input: unknown): React.CSSProperties | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const source = input as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    const camelKey = key.includes("-")
+      ? key.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase())
+      : key;
+    out[camelKey] = value as unknown;
+  }
+  return out as React.CSSProperties;
+}
+
 function renderElement(element: UIElement, onAction?: (actionId: string) => void): React.ReactNode {
   const key = element.id ?? Math.random().toString(36).slice(2);
 
   switch (element.type) {
     case "container": {
       return (
-        <div key={key} className={element.className} style={element.style}>
+        <div key={key} className={element.className} style={toCssStyle(element.style)}>
           {element.children?.map((child) => renderElement(coerceElement(child), onAction))}
         </div>
       );
@@ -56,7 +69,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
             element.className ??
             "rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-neutral-900 p-6 shadow-sm"
           }
-          style={element.style}
+          style={toCssStyle(element.style)}
         >
           {element.children?.map((child) => renderElement(coerceElement(child), onAction))}
         </div>
@@ -65,13 +78,9 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
     case "text": {
       const asLink = element.href as string | undefined;
       if (asLink) {
-        return (
-          <a key={key} href={asLink} className={element.className} style={element.style}>
-            {element.text}
-          </a>
-        );
+        return <a key={key} href={asLink} className={element.className} style={toCssStyle(element.style)}>{element.text}</a>;
       }
-      return <p key={key} className={element.className} style={element.style}>{element.text}</p>;
+      return <p key={key} className={element.className} style={toCssStyle(element.style)}>{element.text}</p>;
     }
     case "button": {
       return (
@@ -81,7 +90,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
             element.className ??
             "inline-flex items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium hover:opacity-90"
           }
-          style={element.style}
+          style={toCssStyle(element.style)}
           onClick={() => onAction?.(element.id ?? "button")}
         >
           {element.text ?? "Button"}
@@ -105,7 +114,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
         const nameOnly = fname.replace(/\.[a-z0-9]+$/i, "");
         return `/images/${nameOnly}`;
       })();
-      return <img key={key} src={src} alt={element.text ?? "image"} className={element.className} style={element.style} />;
+      return <img key={key} src={src} alt={element.text ?? "image"} className={element.className} style={toCssStyle(element.style)} />;
     }
     case "input": {
       return (
@@ -116,7 +125,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
             element.className ??
             "w-full rounded-md border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 text-sm"
           }
-          style={element.style}
+          style={toCssStyle(element.style)}
         />
       );
     }
