@@ -17,7 +17,23 @@ export default function GeneratedUIRenderer({ ui, onAction }: Props) {
     );
   }
 
-  return <div className="w-full h-full">{renderElement(ui.root, onAction)}</div>;
+  return <div className="w-full h-full">{renderElement(coerceElement(ui.root), onAction)}</div>;
+}
+
+function coerceElement(e: any): UIElement {
+  // If type is missing, infer from fields
+  if (e && typeof e === "object" && !e.type) {
+    if (typeof e.text === "string" && e.href) {
+      return { ...e, type: "text" } as UIElement;
+    }
+    if (typeof e.text === "string") {
+      return { ...e, type: "text" } as UIElement;
+    }
+    if (e.children) {
+      return { ...e, type: "container" } as UIElement;
+    }
+  }
+  return e as UIElement;
 }
 
 function renderElement(element: UIElement, onAction?: (actionId: string) => void): React.ReactNode {
@@ -27,7 +43,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
     case "container": {
       return (
         <div key={key} className={element.className} style={element.style}>
-          {element.children?.map((child) => renderElement(child, onAction))}
+          {element.children?.map((child) => renderElement(coerceElement(child), onAction))}
         </div>
       );
     }
@@ -41,16 +57,20 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
           }
           style={element.style}
         >
-          {element.children?.map((child) => renderElement(child, onAction))}
+          {element.children?.map((child) => renderElement(coerceElement(child), onAction))}
         </div>
       );
     }
     case "text": {
-      return (
-        <p key={key} className={element.className} style={element.style}>
-          {element.text}
-        </p>
-      );
+      const asLink = (element as any).href as string | undefined;
+      if (asLink) {
+        return (
+          <a key={key} href={asLink} className={element.className} style={element.style}>
+            {element.text}
+          </a>
+        );
+      }
+      return <p key={key} className={element.className} style={element.style}>{element.text}</p>;
     }
     case "button": {
       return (
