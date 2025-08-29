@@ -154,9 +154,13 @@ export default function UIBuilder() {
             </div>
           )}
 
-          {/* Rendered UI */}
-          <div className="absolute inset-0 overflow-auto p-6 bg-white text-neutral-900">
-            {code ? <CodePreview code={code} className="w-full h-full rounded-md border border-black/10 dark:border-white/15" /> : <GeneratedUIRenderer ui={ui} />}
+          {/* Rendered UI with checker background */}
+          <div className="absolute inset-0 overflow-auto p-0">
+            <div className="min-h-full min-w-full bg-[linear-gradient(90deg,_#f6f7f8_10%,_transparent_10%),linear-gradient(#f6f7f8_10%,_transparent_10%)] bg-[length:16px_16px]">
+              <div className="p-6">
+                {code ? <CodePreview code={code} className="w-full h-full rounded-md border border-black/10 dark:border-white/15" /> : <GeneratedUIRenderer ui={ui} />}
+              </div>
+            </div>
           </div>
 
           {/* Sketch overlay */}

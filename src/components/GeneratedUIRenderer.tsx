@@ -93,7 +93,7 @@ function renderElement(element: UIElement, onAction?: (actionId: string) => void
       return (
         <img
           key={key}
-          src={element.src ?? ""}
+          src={element.src && element.src.trim() ? element.src : "/placeholder.svg"}
           alt={element.text ?? "image"}
           className={element.className}
           style={element.style}
