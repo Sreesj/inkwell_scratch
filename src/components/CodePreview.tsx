@@ -10,29 +10,24 @@ type Props = {
 function wrapIfNeeded(source: string): string {
   const hasHtml = /<html[\s>]/i.test(source);
   if (hasHtml) return source;
-  // Detect JSX/TSX (React) and run it via Babel + UMD React in sandbox
-  const looksLikeJSX = /\bReact\b|useState|export\s+default|<\w+/.test(source);
-  if (!looksLikeJSX) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;padding:0;font-family:system-ui}</style></head><body>${source}</body></html>`;
+  // Sanitize incoming code: strip code fences/markdown, BOM/zero-width spaces
+  function sanitize(code: string): string {
+    const s = code
+      .replace(/```[\w-]*\n?/g, "")
+      .replace(/```/g, "")
+      .replace(/\uFEFF/g, "")
+      .replace(/[\u200B-\u200D\u2060\u00A0]/g, " ")
+      .trim();
+    return s;
   }
-  // Preprocess TS/TSX exports to expose a global App when possible
-  function preprocess(code: string){
-    try{
-      // export default function App() { ... }
-      code = code.replace(/export\s+default\s+function\s+(\w+)/, 'function $1');
-      // export default class App ...
-      code = code.replace(/export\s+default\s+class\s+(\w+)/, 'class $1');
-      // export default App;
-      code = code.replace(/export\s+default\s+(\w+)\s*;?/, 'window.App = $1;');
-      // If we declared function App but no window.App, attach it
-      if (/function\s+App\s*\(/.test(code) && !/window\.App\s*=/.test(code)) {
-        code += '\nwindow.App = App;';
-      }
-    }catch(_: unknown){}
-    return code;
+  const sanitized = sanitize(source);
+  // Detect HTML-only; bypass Babel
+  const looksLikeJSX = /\bReact\b|useState|export\s+default|<\w+/.test(sanitized);
+  const looksLikeHtmlOnly = /<(div|main|section|header|footer|body|html)[\s>]/i.test(sanitized) && !/\bexport\b|\bimport\b/.test(sanitized);
+  if (!looksLikeJSX || looksLikeHtmlOnly) {
+    return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;padding:0;font-family:system-ui}</style></head><body>${sanitized}</body></html>`;
   }
-  const preprocessed = preprocess(source);
-  const escaped = preprocessed.replace(/<\/(script)>/gi, "<\\/$1>");
+  const escaped = sanitized.replace(/<\/(script)>/gi, "<\\/$1>");
   return `<!doctype html>
 <html>
   <head>
@@ -64,12 +59,28 @@ function wrapIfNeeded(source: string): string {
       (function(){
         try {
           var SRC = ${JSON.stringify(escaped)};
-          var toCompile = SRC + "\n;window.__render = function(){ try { var Comp = (typeof window.App !== 'undefined' && window.App) || (typeof App !== 'undefined' && App) || null; if(!Comp){ Comp = function(){ return React.createElement('div', {style:{padding:16}}, 'Rendered code'); }; } var root = ReactDOM.createRoot(document.getElementById('root')); root.render(React.createElement(Comp)); } catch(e){ showError(e); } }";
-          var compiled = Babel.transform(toCompile, { presets: ['typescript','react'] }).code;
+          // Log first 200 chars pre-transform
+          console.log('[Preview][pre]', SRC.slice(0,200));
+          var compiledJs = Babel.transform(SRC, { presets: [['env',{ modules:'commonjs' }], 'react', 'typescript'] }).code;
+          console.log('[Preview][post]', compiledJs.slice(0,200));
+          // Wrap into a CommonJS runner and expose default export
+          var runner = "(function(){\n  try {\n    const module = { exports: {} };\n    const exports = module.exports;\n" +
+            compiledJs +
+            "\n    window.App = module.exports && (module.exports.default || module.exports.App) || window.App;\n  } catch(e){ window.showError(e); }\n})();\n";
+          if (/\bexport\b|\bimport\b/.test(compiledJs)) {
+            console.warn('[Preview] Residual export/import after transform');
+          }
           // eslint-disable-next-line no-new-func
-          (new Function('React','ReactDOM', compiled))(window.React, window.ReactDOM);
-          if (typeof window.__render === 'function') window.__render();
-        } catch(e) { showError(e); }
+          (new Function('React','ReactDOM', runner))(window.React, window.ReactDOM);
+          if (!window.App) throw new Error('No default export found. Export a default component named App.');
+          var rootEl = document.getElementById('root');
+          if (window.ReactDOM.createRoot) {
+            var root = window.ReactDOM.createRoot(rootEl);
+            root.render(window.React.createElement(window.App));
+          } else {
+            window.ReactDOM.render(window.React.createElement(window.App), rootEl);
+          }
+        } catch(e) { window.showError(e); }
       })();
     </script>
   </body>
