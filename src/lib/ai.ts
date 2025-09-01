@@ -5,7 +5,8 @@ import { MagnusService } from "@/lib/services/magnus";
 export async function generateUISchemaWithAI(prompt: string, opts?: { imageUrl?: string }): Promise<GeneratedUISchema | GeneratedOutput> {
   const gemini = new GeminiService();
   try {
-    const html = await gemini.generateUI(prompt, { imageUrl: opts?.imageUrl });
+    const res = await gemini.generateUI(prompt, { imageUrl: opts?.imageUrl });
+    const html = res.code;
     return { kind: "code", code: html };
   } catch (e) {
     console.warn("Gemini error, returning fallback HTML:", e);
@@ -38,7 +39,8 @@ export async function repromptUISchemaWithAI(params: {
         previousUI
       )}`;
     }
-    const html = await gemini.generateUI(refined);
+    const res = await gemini.generateUI(refined);
+    const html = res.code;
     return { kind: "code", code: html };
   } catch (e) {
     console.warn("Gemini reprompt error, returning fallback HTML:", e);

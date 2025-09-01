@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-type GenerateOptions = {
+export type GenerateOptions = {
   imageUrl?: string;
   isIteration?: boolean;
   baseCode?: string;
@@ -31,17 +31,25 @@ export class GeminiService {
       : null;
   }
 
-  async generateUI(userPrompt: string, options: GenerateOptions = {}) {
+  async generateUI(userPrompt: string, options: GenerateOptions = {}): Promise<GeminiUIResult> {
     try {
-      if (!this.model) throw new Error("INVALID_API_KEY");
+      if (!this.model) {
+        return this.processUIResponse(
+          `<div class="min-h-screen p-8"><h1 class="text-2xl font-semibold mb-2">Inkwell</h1><p class="text-gray-600">${escapeHtml(
+            userPrompt
+          )}</p></div>`,
+          options
+        );
+      }
 
       const enhancedPrompt = this.buildUIPrompt(userPrompt, options);
       const result = await this.model.generateContent(enhancedPrompt);
       const response = await result.response;
       const text = response.text();
       return this.processUIResponse(text, options);
-    } catch (error: any) {
-      const msg = String(error?.message || error);
+    } catch (error: unknown) {
+      const err = error as { message?: string } | string;
+      const msg = typeof err === "string" ? err : String(err?.message || err);
       if (/quota|429/i.test(msg)) throw new Error("QUOTA_EXCEEDED");
       if (/invalid api key|INVALID_API_KEY/i.test(msg)) throw new Error("INVALID_API_KEY");
       throw new Error("GENERATION_FAILED");
@@ -93,7 +101,7 @@ export class GeminiService {
     return lines.join("\n");
   }
 
-  private processUIResponse(text: string, options: GenerateOptions = {}) {
+  private processUIResponse(text: string, options: GenerateOptions = {}): GeminiUIResult {
     const cleanedCode = this.stripCodeFences(text);
     return {
       code: cleanedCode,
@@ -130,5 +138,19 @@ export class GeminiService {
     const hasContent = code.length > 100;
     return hasOpeningTags && hasClosingTags && hasContent;
   }
+}
+
+export type GeminiUIResult = {
+  code: string;
+  language: string;
+  framework: string;
+  hasStyles: boolean;
+  isComplete: boolean;
+  timestamp: Date;
+  options: GenerateOptions;
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
