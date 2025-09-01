@@ -15,7 +15,24 @@ function wrapIfNeeded(source: string): string {
   if (!looksLikeJSX) {
     return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;padding:0;font-family:system-ui}</style></head><body>${source}</body></html>`;
   }
-  const escaped = source.replace(/<\/(script)>/gi, "<\\/$1>");
+  // Preprocess TS/TSX exports to expose a global App when possible
+  function preprocess(code: string){
+    try{
+      // export default function App() { ... }
+      code = code.replace(/export\s+default\s+function\s+(\w+)/, 'function $1');
+      // export default class App ...
+      code = code.replace(/export\s+default\s+class\s+(\w+)/, 'class $1');
+      // export default App;
+      code = code.replace(/export\s+default\s+(\w+)\s*;?/, 'window.App = $1;');
+      // If we declared function App but no window.App, attach it
+      if (/function\s+App\s*\(/.test(code) && !/window\.App\s*=/.test(code)) {
+        code += '\nwindow.App = App;';
+      }
+    }catch(_: unknown){}
+    return code;
+  }
+  const preprocessed = preprocess(source);
+  const escaped = preprocessed.replace(/<\/(script)>/gi, "<\\/$1>");
   return `<!doctype html>
 <html>
   <head>
@@ -43,18 +60,16 @@ function wrapIfNeeded(source: string): string {
   <body>
     <div id="root"></div>
     <div id="errors"></div>
-    <script type="text/babel" data-presets="typescript,react">
-      ${escaped}
-      ;(function(){
+    <script>
+      (function(){
         try {
-          var Comp = (typeof App !== 'undefined' && App) || (typeof Default !== 'undefined' && Default) || null;
-          if(!Comp){
-            // Try to guess a component by looking for the first upper-cased identifier
-            Comp = () => React.createElement('div', {style:{padding:16}}, 'Rendered code');
-          }
-          var root = ReactDOM.createRoot(document.getElementById('root'));
-          root.render(React.createElement(Comp));
-        } catch(e){ showError(e); }
+          var SRC = ${JSON.stringify(escaped)};
+          var toCompile = SRC + "\n;window.__render = function(){ try { var Comp = (typeof window.App !== 'undefined' && window.App) || (typeof App !== 'undefined' && App) || null; if(!Comp){ Comp = function(){ return React.createElement('div', {style:{padding:16}}, 'Rendered code'); }; } var root = ReactDOM.createRoot(document.getElementById('root')); root.render(React.createElement(Comp)); } catch(e){ showError(e); } }";
+          var compiled = Babel.transform(toCompile, { presets: ['typescript','react'] }).code;
+          // eslint-disable-next-line no-new-func
+          (new Function('React','ReactDOM', compiled))(window.React, window.ReactDOM);
+          if (typeof window.__render === 'function') window.__render();
+        } catch(e) { showError(e); }
       })();
     </script>
   </body>
