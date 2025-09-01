@@ -1,48 +1,134 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+type GenerateOptions = {
+  imageUrl?: string;
+  isIteration?: boolean;
+  baseCode?: string;
+};
+
 export class GeminiService {
-  private apiKey: string | undefined;
-  private modelId: string;
-  private client: GoogleGenerativeAI | null;
+  private genAI: GoogleGenerativeAI | null;
+  private model: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null;
 
   constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY;
-    this.modelId = process.env.GEMINI_MODEL || "gemini-1.5-pro";
-    this.client = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    const modelId = process.env.GENAI_MODEL || "gemini-2.5-pro";
+    this.genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+    this.model = this.genAI
+      ? this.genAI.getGenerativeModel({
+          model: modelId,
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+          },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          ],
+        })
+      : null;
   }
 
-  async generateUI(userPrompt: string, context: { brand?: string; imageUrl?: string } = {}): Promise<string> {
-    if (!this.client) {
-      return `<!-- Stub: Gemini not configured -->\n<div class="min-h-screen p-8">\n  <h1 class="text-3xl font-semibold">${context.brand || "Inkwell"}</h1>\n  <p class="mt-2 text-gray-600">${userPrompt}</p>\n</div>`;
+  async generateUI(userPrompt: string, options: GenerateOptions = {}) {
+    try {
+      if (!this.model) throw new Error("INVALID_API_KEY");
+
+      const enhancedPrompt = this.buildUIPrompt(userPrompt, options);
+      const result = await this.model.generateContent(enhancedPrompt);
+      const response = await result.response;
+      const text = response.text();
+      return this.processUIResponse(text, options);
+    } catch (error: any) {
+      const msg = String(error?.message || error);
+      if (/quota|429/i.test(msg)) throw new Error("QUOTA_EXCEEDED");
+      if (/invalid api key|INVALID_API_KEY/i.test(msg)) throw new Error("INVALID_API_KEY");
+      throw new Error("GENERATION_FAILED");
     }
-
-    const model = this.client.getGenerativeModel({ model: this.modelId });
-    const system = [
-      "You generate production-ready UI as HTML with Tailwind CSS.",
-      "Rules:",
-      "- Output only HTML (no markdown, no code fences, no explanations).",
-      "- Use semantic HTML and responsive Tailwind classes.",
-      "- Do not reference external URLs; prefer provided /images/* assets.",
-      context.imageUrl ? `- Use this hero or reference image when suitable: ${context.imageUrl}` : "",
-    ].filter(Boolean).join("\n");
-
-    const prompt = [
-      system,
-      "\nUser Requirements:\n",
-      userPrompt,
-    ].join("");
-
-    const result = await model.generateContent([{ text: prompt }]);
-    const text = result.response.text() || "";
-    return stripCodeFences(text).trim();
   }
-}
 
-function stripCodeFences(s: string): string {
-  // Remove ```html ... ``` or ``` ... ``` fences if present
-  const fence = /^```[a-zA-Z]*\n([\s\S]*?)\n```$/m;
-  const m = s.match(fence);
-  if (m) return m[1];
-  return s;
+  async generateIteration(originalUI: { description?: string; code?: string }, changes: string, context: { iteration?: number } = {}) {
+    const iterationPrompt = [
+      "TASK: Modify existing UI based on user requirements",
+      "\nORIGINAL UI CONTEXT:",
+      originalUI?.description || "",
+      "\nREQUESTED CHANGES:",
+      changes,
+      `\nCURRENT ITERATION: ${context.iteration || 1}`,
+      "\nGenerate updated, high-quality React/HTML code that applies these changes. Maintain existing functionality while implementing requested modifications. Use Tailwind CSS and responsive design.",
+    ].join("\n");
+    return this.generateUI(iterationPrompt, { ...context, isIteration: true, baseCode: originalUI?.code });
+  }
+
+  private buildUIPrompt(userPrompt: string, options: GenerateOptions = {}) {
+    const lines = [
+      "ROLE: You are an expert frontend developer creating production-ready UI components.",
+      `\nTASK: ${userPrompt}`,
+      "\nREQUIREMENTS:",
+      "- Generate clean, modern, responsive code",
+      "- Use React/JSX syntax with TypeScript",
+      "- Use Tailwind CSS for styling",
+      "- Include proper accessibility (ARIA labels)",
+      "- Add smooth animations and hover effects",
+      "- Ensure mobile-first responsive design",
+      "- Use semantic HTML elements",
+    ];
+    if (options.imageUrl) lines.push(`- Use this reference image where appropriate: ${options.imageUrl}`);
+    if (options.isIteration) {
+      lines.push(
+        "\nITERATION CONTEXT:",
+        `- This is modifying existing code: ${options.baseCode ? "Yes" : "No"}`,
+        "- Preserve existing functionality",
+        "- Focus on requested changes only",
+      );
+    }
+    lines.push(
+      "\nOUTPUT FORMAT:",
+      "- Return only the complete, working code",
+      "- Include necessary imports",
+      "- Use TypeScript interfaces where appropriate",
+      "- Add brief comments only for complex logic",
+    );
+    return lines.join("\n");
+  }
+
+  private processUIResponse(text: string, options: GenerateOptions = {}) {
+    const cleanedCode = this.stripCodeFences(text);
+    return {
+      code: cleanedCode,
+      language: this.detectLanguage(cleanedCode),
+      framework: this.detectFramework(cleanedCode),
+      hasStyles: cleanedCode.includes("className") || cleanedCode.includes("style"),
+      isComplete: this.validateCompleteness(cleanedCode),
+      timestamp: new Date(),
+      options,
+    };
+  }
+
+  private stripCodeFences(text: string) {
+    return text.replace(/```[\w]*\n?/g, "").replace(/```/g, "").trim();
+  }
+
+  private detectLanguage(code: string) {
+    if (code.includes("interface ") || code.includes(": React.FC")) return "typescript";
+    if (code.includes("jsx") || code.includes("React")) return "javascript";
+    if (code.includes("<html>")) return "html";
+    return "unknown";
+  }
+
+  private detectFramework(code: string) {
+    if (code.includes("React") || code.includes("useState")) return "react";
+    if (code.includes("Vue") || code.includes("v-")) return "vue";
+    if (code.includes("<html>")) return "vanilla";
+    return "unknown";
+  }
+
+  private validateCompleteness(code: string) {
+    const hasOpeningTags = code.includes("<");
+    const hasClosingTags = code.includes(">");
+    const hasContent = code.length > 100;
+    return hasOpeningTags && hasClosingTags && hasContent;
+  }
 }
 
