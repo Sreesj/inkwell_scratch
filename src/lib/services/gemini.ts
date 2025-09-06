@@ -35,9 +35,7 @@ export class GeminiService {
     try {
       if (!this.model) {
         return this.processUIResponse(
-          `<div class="min-h-screen p-8"><h1 class="text-2xl font-semibold mb-2">Inkwell</h1><p class="text-gray-600">${escapeHtml(
-            userPrompt
-          )}</p></div>`,
+          `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inkwell</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}</style></head><body><div style="text-align:center;color:white;padding:2rem"><h1 style="font-size:2rem;margin-bottom:1rem">Inkwell</h1><p>${escapeHtml(userPrompt)}</p></div></body></html>`,
           options
         );
       }
@@ -58,58 +56,72 @@ export class GeminiService {
 
   async generateIteration(originalUI: { description?: string; code?: string }, changes: string, context: { iteration?: number } = {}) {
     const iterationPrompt = [
-      "TASK: Modify existing UI based on user requirements",
-      "\nORIGINAL UI CONTEXT:",
+      "TASK: Modify existing full-page application based on user requirements",
+      "\nORIGINAL APPLICATION:",
       originalUI?.description || "",
       "\nREQUESTED CHANGES:",
       changes,
       `\nCURRENT ITERATION: ${context.iteration || 1}`,
-      "\nGenerate updated, high-quality code that applies these changes. Maintain existing functionality while implementing requested modifications.",
-      "\nIMPORTANT: Follow all canvas sizing requirements below.",
+      "\nGenerate the complete, updated application code. Maintain the full-page structure while implementing requested modifications.",
+      "\nIMPORTANT: Follow all full-page application requirements below.",
     ].join("\n");
     return this.generateUI(iterationPrompt, { ...context, isIteration: true, baseCode: originalUI?.code });
   }
 
   private buildUIPrompt(userPrompt: string, options: GenerateOptions = {}) {
     const lines = [
-      "ROLE: You are an expert frontend developer creating production-ready UI components.",
+      "ROLE: You are an expert frontend developer creating complete, production-ready web applications.",
       `\nTASK: ${userPrompt}`,
-      "\nCRITICAL CANVAS REQUIREMENTS (MUST FOLLOW):",
-      "- The output will render in a preview canvas/iframe",
-      "- Use ONLY viewport-relative units (vw, vh, %, rem) - NO fixed pixel widths",
-      "- Set containers to: width: 100%; max-width: 100vw; overflow-x: hidden;",
-      "- For full-height layouts use: min-height: 100vh (not height: 100vh)",
-      "- All content must fit within canvas bounds without horizontal scrolling",
-      "- Test that your layout works at 800px, 1200px, and 400px widths",
-      "\nCODE REQUIREMENTS:",
+      "\nIMPORTANT: Generate a COMPLETE, FULL-PAGE APPLICATION, not just a component.",
+      "\nFULL-PAGE REQUIREMENTS:",
+      "- Create a complete webpage that fills the entire viewport",
+      "- Include appropriate sections: header/nav, main content, footer as needed",
+      "- Use min-height: 100vh for full-height layouts",
+      "- Design should look like a real website/app, not a component demo",
+      "- Include navigation, hero sections, content areas as appropriate for the request",
+      "- Use realistic content, proper spacing, and professional styling",
+      "\nTECHNICAL REQUIREMENTS:",
       "- Choose the BEST technology for the task (React, HTML, Vue, etc.)",
-      "- Use modern, responsive design patterns",
-      "- Include proper accessibility (ARIA labels, semantic HTML)",
-      "- Add smooth animations and hover effects",
-      "- Use CSS Grid/Flexbox for layouts",
-      "- Mobile-first responsive design",
+      "- Use modern CSS frameworks (Tailwind CSS preferred)",
+      "- Responsive design that works on mobile and desktop",
+      "- Include realistic content, images (/images/[name] for placeholders), and interactions",
+      "- Use semantic HTML and proper accessibility (ARIA labels, proper headings)",
+      "- Add smooth animations, hover effects, and micro-interactions",
+      "- Implement working interactive elements (buttons, forms, navigation)",
+      "\nCANVAS CONSTRAINTS:",
+      "- Must fit perfectly in preview canvas without horizontal scrollbars",
+      "- Use relative units (%, vw, vh, rem) instead of large fixed pixel values",
+      "- Ensure all content is contained within viewport bounds",
+      "- Test responsiveness for various screen sizes (400px to 1200px+)",
     ];
 
-    if (options.imageUrl) lines.push(`- Use this reference image where appropriate: ${options.imageUrl}`);
+    if (options.imageUrl) lines.push(`- Reference this image for design inspiration: ${options.imageUrl}`);
     
     if (options.isIteration) {
       lines.push(
         "\nITERATION CONTEXT:",
-        `- This is modifying existing code: ${options.baseCode ? "Yes" : "No"}`,
-        "- Preserve existing functionality",
-        "- Focus on requested changes only",
-        "- Maintain canvas sizing requirements",
+        `- This is modifying existing application code: ${options.baseCode ? "Yes" : "No"}`,
+        "- Preserve existing full-page structure and functionality",
+        "- Focus on requested changes while maintaining app completeness",
+        "- Keep all canvas sizing and responsive requirements",
       );
     }
     
     lines.push(
+      "\nEXAMPLES OF COMPLETE APPLICATIONS TO BUILD:",
+      "- E-commerce: Header with nav/logo, hero banner, product grid, features, testimonials, footer",
+      "- Dashboard: Sidebar navigation, header with user info, main content with stats/charts/tables",
+      "- Landing page: Navigation, hero section, features, pricing, testimonials, CTA, footer",
+      "- Portfolio: Header with nav, hero/about, projects grid, skills, contact, footer",
+      "- Blog: Header with nav/search, featured post, article grid, sidebar, footer",
+      "- SaaS App: Login/header, main dashboard view, sidebar, content panels, notifications",
       "\nOUTPUT REQUIREMENTS:",
-      "- Return ONLY the complete, working code",
-      "- For React: Include necessary imports and export default component",
-      "- For HTML: Include complete HTML document with inline CSS",
-      "- NO markdown code blocks, NO explanations",
-      "- Ensure code renders properly in iframe/canvas preview",
-      "- Test responsiveness and canvas fit",
+      "- Return ONLY complete, working application code",
+      "- For HTML: Complete <!DOCTYPE html> document with all CSS/JS inline",
+      "- For React: Complete functional application with all necessary imports",
+      "- NO markdown code blocks, NO explanations, NO incomplete components",
+      "- Code should render as a complete, professional application immediately",
+      "- Ensure the result looks like a real, polished web application",
     );
     
     return lines.join("\n");
@@ -135,14 +147,14 @@ export class GeminiService {
   private detectLanguage(code: string) {
     if (code.includes("interface ") || code.includes(": React.FC")) return "typescript";
     if (code.includes("jsx") || code.includes("React")) return "javascript";
-    if (code.includes("<html>")) return "html";
+    if (code.includes("<html>") || code.includes("<!DOCTYPE")) return "html";
     return "unknown";
   }
 
   private detectFramework(code: string) {
     if (code.includes("React") || code.includes("useState")) return "react";
     if (code.includes("Vue") || code.includes("v-")) return "vue";
-    if (code.includes("<html>")) return "vanilla";
+    if (code.includes("<html>") || code.includes("<!DOCTYPE")) return "vanilla";
     return "unknown";
   }
 
@@ -150,7 +162,8 @@ export class GeminiService {
     const hasOpeningTags = code.includes("<");
     const hasClosingTags = code.includes(">");
     const hasContent = code.length > 100;
-    return hasOpeningTags && hasClosingTags && hasContent;
+    const looksComplete = code.includes("DOCTYPE") || code.includes("export") || code.includes("function");
+    return hasOpeningTags && hasClosingTags && hasContent && looksComplete;
   }
 }
 
