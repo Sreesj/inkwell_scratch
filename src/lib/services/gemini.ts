@@ -64,7 +64,8 @@ export class GeminiService {
       "\nREQUESTED CHANGES:",
       changes,
       `\nCURRENT ITERATION: ${context.iteration || 1}`,
-      "\nGenerate updated, high-quality React/HTML code that applies these changes. Maintain existing functionality while implementing requested modifications. Use Tailwind CSS and responsive design.",
+      "\nGenerate updated, high-quality code that applies these changes. Maintain existing functionality while implementing requested modifications.",
+      "\nIMPORTANT: Follow all canvas sizing requirements below.",
     ].join("\n");
     return this.generateUI(iterationPrompt, { ...context, isIteration: true, baseCode: originalUI?.code });
   }
@@ -73,31 +74,44 @@ export class GeminiService {
     const lines = [
       "ROLE: You are an expert frontend developer creating production-ready UI components.",
       `\nTASK: ${userPrompt}`,
-      "\nREQUIREMENTS:",
-      "- Generate clean, modern, responsive code",
-      "- Use React/JSX syntax with TypeScript",
-      "- Use Tailwind CSS for styling",
-      "- Include proper accessibility (ARIA labels)",
+      "\nCRITICAL CANVAS REQUIREMENTS (MUST FOLLOW):",
+      "- The output will render in a preview canvas/iframe",
+      "- Use ONLY viewport-relative units (vw, vh, %, rem) - NO fixed pixel widths",
+      "- Set containers to: width: 100%; max-width: 100vw; overflow-x: hidden;",
+      "- For full-height layouts use: min-height: 100vh (not height: 100vh)",
+      "- All content must fit within canvas bounds without horizontal scrolling",
+      "- Test that your layout works at 800px, 1200px, and 400px widths",
+      "\nCODE REQUIREMENTS:",
+      "- Choose the BEST technology for the task (React, HTML, Vue, etc.)",
+      "- Use modern, responsive design patterns",
+      "- Include proper accessibility (ARIA labels, semantic HTML)",
       "- Add smooth animations and hover effects",
-      "- Ensure mobile-first responsive design",
-      "- Use semantic HTML elements",
+      "- Use CSS Grid/Flexbox for layouts",
+      "- Mobile-first responsive design",
     ];
+
     if (options.imageUrl) lines.push(`- Use this reference image where appropriate: ${options.imageUrl}`);
+    
     if (options.isIteration) {
       lines.push(
         "\nITERATION CONTEXT:",
         `- This is modifying existing code: ${options.baseCode ? "Yes" : "No"}`,
         "- Preserve existing functionality",
         "- Focus on requested changes only",
+        "- Maintain canvas sizing requirements",
       );
     }
+    
     lines.push(
-      "\nOUTPUT FORMAT:",
-      "- Return only the complete, working code",
-      "- Include necessary imports",
-      "- Use TypeScript interfaces where appropriate",
-      "- Add brief comments only for complex logic",
+      "\nOUTPUT REQUIREMENTS:",
+      "- Return ONLY the complete, working code",
+      "- For React: Include necessary imports and export default component",
+      "- For HTML: Include complete HTML document with inline CSS",
+      "- NO markdown code blocks, NO explanations",
+      "- Ensure code renders properly in iframe/canvas preview",
+      "- Test responsiveness and canvas fit",
     );
+    
     return lines.join("\n");
   }
 
@@ -153,4 +167,3 @@ export type GeminiUIResult = {
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
-
