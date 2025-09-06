@@ -10,6 +10,7 @@ type Props = {
 function wrapIfNeeded(source: string): string {
   const hasHtml = /<html[\s>]/i.test(source);
   if (hasHtml) return source;
+  
   // Sanitize incoming code: strip code fences/markdown, BOM/zero-width spaces
   function sanitize(code: string): string {
     const s = code
@@ -20,13 +21,41 @@ function wrapIfNeeded(source: string): string {
       .trim();
     return s;
   }
+  
   const sanitized = sanitize(source);
+  
   // Detect HTML-only; bypass Babel
   const looksLikeJSX = /\bReact\b|useState|export\s+default|<\w+/.test(sanitized);
   const looksLikeHtmlOnly = /<(div|main|section|header|footer|body|html)[\s>]/i.test(sanitized) && !/\bexport\b|\bimport\b/.test(sanitized);
+  
   if (!looksLikeJSX || looksLikeHtmlOnly) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;padding:0;font-family:system-ui}</style></head><body>${sanitized}</body></html>`;
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: system-ui;
+        width: 100%;
+        height: 100vh;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      body > * {
+        max-width: 100vw;
+      }
+    </style>
+  </head>
+  <body>${sanitized}</body>
+</html>`;
   }
+  
   const escaped = sanitized.replace(/<\/(script)>/gi, "<\\/$1>");
   return `<!doctype html>
 <html>
@@ -34,7 +63,26 @@ function wrapIfNeeded(source: string): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
-      html,body{margin:0;padding:0;font-family:system-ui}
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: system-ui;
+        width: 100%;
+        height: 100vh;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      #root {
+        width: 100%;
+        height: 100vh;
+        overflow-x: hidden;
+      }
+      #root > * {
+        max-width: 100vw;
+      }
       #errors{position:fixed;inset:auto 0 0 0;background:#fee2e2;color:#991b1b;padding:8px 12px;font:12px/1.4 monospace;display:none}
     </style>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -59,18 +107,15 @@ function wrapIfNeeded(source: string): string {
       (function(){
         try {
           var SRC = ${JSON.stringify(escaped)};
-          // Log first 200 chars pre-transform
           console.log('[Preview][pre]', SRC.slice(0,200));
           var compiledJs = Babel.transform(SRC, { presets: [['env',{ modules:'commonjs' }], 'react', 'typescript'] }).code;
           console.log('[Preview][post]', compiledJs.slice(0,200));
-          // Wrap into a CommonJS runner and expose default export
           var runner = "(function(){\n  try {\n    const module = { exports: {} };\n    const exports = module.exports;\n" +
             compiledJs +
             "\n    window.App = module.exports && (module.exports.default || module.exports.App) || window.App;\n  } catch(e){ window.showError(e); }\n})();\n";
           if (/\bexport\b|\bimport\b/.test(compiledJs)) {
             console.warn('[Preview] Residual export/import after transform');
           }
-          // eslint-disable-next-line no-new-func
           (new Function('React','ReactDOM', runner))(window.React, window.ReactDOM);
           if (!window.App) throw new Error('No default export found. Export a default component named App.');
           var rootEl = document.getElementById('root');
@@ -88,13 +133,23 @@ function wrapIfNeeded(source: string): string {
 }
 
 export default function CodePreview({ code, className }: Props) {
-  const srcDoc = useMemo(() => wrapIfNeeded(code ?? "<div style=\"padding:16px;font-family:system-ui\">No code yet.</div>"), [code]);
+  const srcDoc = useMemo(() => 
+    wrapIfNeeded(code ?? "<div style=\"padding:16px;font-family:system-ui\">No code yet.</div>"), 
+    [code]
+  );
+  
   return (
     <iframe
       className={className ?? "w-full h-full"}
       srcDoc={srcDoc}
+      style={{ 
+        border: 'none',
+        width: '100%',
+        height: '100%',
+        maxWidth: '100%',
+        overflow: 'hidden'
+      }}
       sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
     />
   );
 }
-
