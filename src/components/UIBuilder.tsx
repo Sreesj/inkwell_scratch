@@ -114,7 +114,7 @@ export default function UIBuilder() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-[160px] flex-1 resize-none rounded-md border border-black/10 dark:border-white/15 bg-transparent p-3 text-sm"
-            placeholder="Describe the UI you want to generate..."
+            placeholder="Describe the full application you want to generate..."
           />
           <div className="flex items-center justify-between gap-2">
             <button
@@ -124,26 +124,35 @@ export default function UIBuilder() {
             >
               {isGenerating ? "Generating..." : "Generate"}
             </button>
-            <div className="text-xs text-gray-500">The right panel updates with the generated UI.</div>
+            <div className="text-xs text-gray-500">Full page apps render on the right.</div>
           </div>
           <div className="rounded-md border border-black/10 dark:border-white/15 p-3 text-xs text-gray-600 dark:text-gray-400">
-            <div className="font-medium mb-1">How to use</div>
+            <div className="font-medium mb-1">Examples to try</div>
+            <ul className="list-inside list-disc space-y-1">
+              <li>"Complete e-commerce website for selling sneakers"</li>
+              <li>"Full dashboard for project management app"</li>
+              <li>"Landing page for a fitness app"</li>
+              <li>"Portfolio website for a web developer"</li>
+            </ul>
+          </div>
+          <div className="rounded-md border border-black/10 dark:border-white/15 p-3 text-xs text-gray-600 dark:text-gray-400">
+            <div className="font-medium mb-1">How to iterate</div>
             <ol className="list-inside list-decimal space-y-1">
-              <li>Describe your UI and click Generate.</li>
-              <li>After it renders, click ✏️ Pen to sketch changes.</li>
+              <li>Generate a full application above.</li>
+              <li>Click ✏️ Pen to sketch changes directly on it.</li>
               <li>Click Export to apply your sketch and regenerate.</li>
             </ol>
           </div>
         </div>
 
-        {/* Right: Preview with overlay */}
-        <div className="relative rounded-xl border border-black/10 dark:border-white/15 bg-white overflow-hidden shadow-sm" ref={containerRef}>
-          {/* Toolbar */}
-          {canReprompt && (
+        {/* Right: Full-page Preview (no white background, no padding) */}
+        <div className="relative rounded-xl border border-black/10 dark:border-white/15 overflow-hidden shadow-sm" ref={containerRef}>
+          {/* Floating Toolbar */}
+          {(ui || code) && (
             <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
               <button
                 onClick={() => setIsSketchMode((v) => !v)}
-                className={`rounded-full border border-black/10 dark:border-white/15 bg-white/80 dark:bg-black/60 backdrop-blur px-3 py-1 text-sm ${
+                className={`rounded-full border border-black/10 dark:border-white/15 bg-white/90 dark:bg-black/70 backdrop-blur px-3 py-1 text-sm shadow-lg ${
                   isSketchMode ? "ring-2 ring-blue-500" : ""
                 }`}
                 title="Sketch overlay"
@@ -154,12 +163,25 @@ export default function UIBuilder() {
             </div>
           )}
 
-          {/* Rendered UI with checker background */}
-          <div className="absolute inset-0 overflow-auto p-0">
-            <div className="min-h-full min-w-full bg-[linear-gradient(90deg,_#f6f7f8_10%,_transparent_10%),linear-gradient(#f6f7f8_10%,_transparent_10%)] bg-[length:16px_16px]">
-              <div className="p-6">
-                {code ? <CodePreview code={code} className="w-full h-full rounded-md border border-black/10 dark:border-white/15" /> : <GeneratedUIRenderer ui={ui} />}
-              </div>
+          {/* Full-screen rendered application (no background, no padding) */}
+          <div className="absolute inset-0 overflow-auto">
+            <div className="min-h-full min-w-full">
+              {!ui && !code ? (
+                // Empty state with subtle background
+                <div className="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <div className="text-4xl mb-4">🎨</div>
+                    <div className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Ready to create</div>
+                    <div className="text-sm text-gray-500">Enter a prompt to generate a full application</div>
+                  </div>
+                </div>
+              ) : code ? (
+                // Full-page code preview (no padding wrapper)
+                <CodePreview code={code} className="w-full h-full" />
+              ) : (
+                // Full-page UI schema renderer (no padding wrapper)
+                <GeneratedUIRenderer ui={ui} />
+              )}
             </div>
           </div>
 
@@ -170,4 +192,3 @@ export default function UIBuilder() {
     </div>
   );
 }
-
