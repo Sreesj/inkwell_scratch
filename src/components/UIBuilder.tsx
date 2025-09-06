@@ -106,7 +106,8 @@ export default function UIBuilder() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-[420px_1fr] gap-4 p-4 sm:p-6 md:p-8">
+      {/* FIXED: Force full height for the main grid */}
+      <div className="grid grid-cols-1 md:grid-cols-[420px_1fr] gap-4 p-4 sm:p-6 md:p-8 h-full min-h-0">
         {/* Left: Prompting */}
         <div className="flex flex-col rounded-xl border border-black/10 dark:border-white/15 bg-white/70 dark:bg-neutral-900/70 backdrop-blur p-4 gap-3">
           <div className="text-sm font-medium">Prompt</div>
@@ -145,8 +146,8 @@ export default function UIBuilder() {
           </div>
         </div>
 
-        {/* Right: Full-page Preview (no white background, no padding) */}
-        <div className="relative rounded-xl border border-black/10 dark:border-white/15 overflow-hidden shadow-sm" ref={containerRef}>
+        {/* Right: Full-height Preview Canvas - FIXED */}
+        <div className="relative rounded-xl border border-black/10 dark:border-white/15 overflow-hidden shadow-sm h-full min-h-0" ref={containerRef}>
           {/* Floating Toolbar */}
           {(ui || code) && (
             <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
@@ -163,26 +164,26 @@ export default function UIBuilder() {
             </div>
           )}
 
-          {/* Full-screen rendered application (no background, no padding) */}
-          <div className="absolute inset-0 overflow-auto">
-            <div className="min-h-full min-w-full">
-              {!ui && !code ? (
-                // Empty state with subtle background
-                <div className="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="text-4xl mb-4">🎨</div>
-                    <div className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Ready to create</div>
-                    <div className="text-sm text-gray-500">Enter a prompt to generate a full application</div>
-                  </div>
+          {/* FIXED: Full-height content container */}
+          <div className="absolute inset-0 w-full h-full">
+            {!ui && !code ? (
+              // Empty state with subtle background
+              <div className="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-neutral-900 dark:to-neutral-800 flex items-center justify-center">
+                <div className="text-center p-8">
+                  <div className="text-4xl mb-4">🎨</div>
+                  <div className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Ready to create</div>
+                  <div className="text-sm text-gray-500">Enter a prompt to generate a full application</div>
                 </div>
-              ) : code ? (
-                // Full-page code preview (no padding wrapper)
-                <CodePreview code={code} className="w-full h-full" />
-              ) : (
-                // Full-page UI schema renderer (no padding wrapper)
+              </div>
+            ) : code ? (
+              // FIXED: Force full height for CodePreview
+              <CodePreview code={code} className="w-full h-full block" />
+            ) : (
+              // FIXED: Force full height for UI renderer
+              <div className="w-full h-full">
                 <GeneratedUIRenderer ui={ui} />
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Sketch overlay */}
