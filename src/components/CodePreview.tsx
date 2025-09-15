@@ -444,9 +444,19 @@ function wrapIfNeeded(source: string): string {
               return declarations.join(' ');
             });
         
+        // Final safety check: if any imports remain, do emergency cleanup
+        if (SRC.includes('import ')) {
+          console.warn('🔧 Emergency cleanup: imports detected, applying nuclear option');
+          SRC = SRC
+            .split('\\n')
+            .filter(line => !line.trim().match(/^import\\s/))
+            .join('\\n');
+          console.log('After emergency cleanup, imports remaining:', SRC.includes('import '));
+        }
+        
         // Debug: Check for problematic lines around the error
         var lines = SRC.split('\\n');
-        console.log('Total lines:', lines.length);
+        console.log('Total lines after all processing:', lines.length);
         if (lines.length > 345) {
           console.log('Lines 345-355:');
           for (var i = 345; i < Math.min(355, lines.length); i++) {
@@ -458,12 +468,26 @@ function wrapIfNeeded(source: string): string {
         var compiledJs;
         try {
           compiledJs = Babel.transform(SRC, {
-            presets: ['react']
+            presets: ['react'],
+            plugins: []
           }).code;
+          console.log('✅ Babel compilation successful');
         } catch (babelError) {
-          console.error('Babel error at:', babelError.message);
-          console.error('Problematic code section:', SRC.substring(Math.max(0, SRC.indexOf('logo.svg') - 200), SRC.indexOf('logo.svg') + 200));
-          window.showError('Babel transformation failed: ' + babelError.message + '\\n\\nCheck console for code details');
+          console.error('❌ Babel compilation failed');
+          console.error('Error:', babelError.message);
+          console.error('Error location:', babelError.loc);
+          
+          // Show the problematic code section
+          var errorLine = babelError.loc ? babelError.loc.line : 349;
+          var startLine = Math.max(0, errorLine - 5);
+          var endLine = Math.min(lines.length, errorLine + 5);
+          console.error('Code around error:');
+          for (var i = startLine; i < endLine; i++) {
+            var marker = i === errorLine - 1 ? '>>> ' : '    ';
+            console.error(marker + (i + 1) + ':', lines[i]);
+          }
+          
+          window.showError('Babel transformation failed at line ' + errorLine + ': ' + babelError.message);
           throw babelError;
         }
         
