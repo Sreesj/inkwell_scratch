@@ -98,30 +98,6 @@ function wrapIfNeeded(source: string): string {
       body > * {
         min-height: 100vh;
       }
-      /* Common utility classes */
-      .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
-      .text-center { text-align: center; }
-      .text-white { color: white; }
-      .bg-dark { background: #1a1a1a; }
-      .bg-light { background: #f8f9fa; }
-      .p-4 { padding: 1rem; }
-      .mt-4 { margin-top: 1rem; }
-      .mb-4 { margin-bottom: 1rem; }
-      .btn { 
-        display: inline-block; 
-        padding: 0.5rem 1rem; 
-        background: #007bff; 
-        color: white; 
-        text-decoration: none; 
-        border-radius: 4px; 
-        border: none;
-        cursor: pointer;
-      }
-      .btn:hover { background: #0056b3; }
-      .grid { display: grid; gap: 1rem; }
-      .flex { display: flex; }
-      .items-center { align-items: center; }
-      .justify-center { justify-content: center; }
     </style>
   </head>
   <body>
@@ -130,7 +106,7 @@ function wrapIfNeeded(source: string): string {
 </html>`;
   }
   
-  // React/JSX - Enhanced with ALL animation libraries
+  // React/JSX - Enhanced with working animation libraries
   const escaped = sanitized.replace(/<\/(script)>/gi, "<\\/$1>");
   return `<!DOCTYPE html>
 <html lang="en">
@@ -173,6 +149,48 @@ function wrapIfNeeded(source: string): string {
         max-height: 200px;
         overflow-y: auto;
       }
+
+      /* Custom animations for when framer-motion is not available */
+      @keyframes liquidMove {
+        0%, 100% { 
+          border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+          transform: translate(0px, 0px) scale(1);
+        }
+        33% { 
+          border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+          transform: translate(30px, -50px) scale(1.1);
+        }
+        66% { 
+          border-radius: 40% 30% 60% 70% / 40% 60% 50% 30%;
+          transform: translate(-20px, 20px) scale(0.9);
+        }
+      }
+
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes staggerIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+      }
+
+      @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .animate-liquid { animation: liquidMove 8s ease-in-out infinite; }
+      .animate-fade-in-up { animation: fadeInUp 0.6s ease-out; }
+      .animate-stagger { animation: staggerIn 0.6s ease-out; }
+      .animate-float { animation: float 3s ease-in-out infinite; }
+      .animate-rotate { animation: rotate 2s linear infinite; }
     </style>
     
     <!-- Core React -->
@@ -183,34 +201,6 @@ function wrapIfNeeded(source: string): string {
     <!-- Styling Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 🎪 ANIMATION LIBRARIES -->
-    <!-- Framer Motion - Professional React animations -->
-    <script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
-    
-    <!-- React Spring - Physics-based animations -->
-    <script src="https://unpkg.com/react-spring@9.7.3/dist/react-spring.umd.js"></script>
-    
-    <!-- GSAP - Timeline animations -->
-    <script src="https://unpkg.com/gsap@3.12.2/dist/gsap.min.js"></script>
-    <script src="https://unpkg.com/gsap@3.12.2/dist/ScrollTrigger.min.js"></script>
-    
-    <!-- Lottie React - After Effects animations -->
-    <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
-    
-    <!-- 🎨 UI COMPONENT LIBRARIES -->
-    <!-- Headless UI - Accessible components -->
-    <script src="https://unpkg.com/@headlessui/react@1.7.17/dist/headlessui.umd.js"></script>
-    
-    <!-- React Hot Toast - Smooth notifications -->
-    <script src="https://unpkg.com/react-hot-toast@2.4.1/dist/index.umd.js"></script>
-    
-    <!-- 🛠️ UTILITY LIBRARIES -->
-    <script src="https://unpkg.com/clsx@2.0.0/dist/clsx.min.js"></script>
-    <script src="https://unpkg.com/class-variance-authority@0.7.0/dist/index.umd.js"></script>
-    
-    <!-- 🎯 ICONS -->
-    <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
-    
     <!-- Enhanced Tailwind Configuration -->
     <script>
       tailwind.config = {
@@ -220,17 +210,10 @@ function wrapIfNeeded(source: string): string {
               'fade-in': 'fadeIn 0.5s ease-in-out',
               'fade-in-up': 'fadeInUp 0.6s ease-out',
               'slide-up': 'slideUp 0.5s ease-out',
-              'slide-down': 'slideDown 0.5s ease-out',
-              'scale-in': 'scaleIn 0.4s ease-out',
-              'bounce-slow': 'bounce 2s infinite',
-              'pulse-slow': 'pulse 3s infinite',
-              'spin-slow': 'spin 3s linear infinite',
-              'wiggle': 'wiggle 1s ease-in-out infinite',
-              'float': 'float 6s ease-in-out infinite',
-              'glow': 'glow 2s ease-in-out infinite alternate',
-              'shimmer': 'shimmer 2s linear infinite',
-              'morph': 'morph 4s ease-in-out infinite',
-              'liquid': 'liquid 8s ease-in-out infinite',
+              'stagger': 'staggerIn 0.6s ease-out',
+              'float': 'float 3s ease-in-out infinite',
+              'liquid': 'liquidMove 8s ease-in-out infinite',
+              'rotate': 'rotate 2s linear infinite',
             },
             keyframes: {
               fadeIn: {
@@ -245,35 +228,15 @@ function wrapIfNeeded(source: string): string {
                 '0%': { transform: 'translateY(100%)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' },
               },
-              slideDown: {
-                '0%': { transform: 'translateY(-100%)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              },
-              scaleIn: {
-                '0%': { transform: 'scale(0.8)', opacity: '0' },
-                '100%': { transform: 'scale(1)', opacity: '1' },
-              },
-              wiggle: {
-                '0%, 100%': { transform: 'rotate(-3deg)' },
-                '50%': { transform: 'rotate(3deg)' },
+              staggerIn: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
               },
               float: {
                 '0%, 100%': { transform: 'translateY(0px)' },
                 '50%': { transform: 'translateY(-20px)' },
               },
-              glow: {
-                '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' },
-                '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.4)' },
-              },
-              shimmer: {
-                '0%': { backgroundPosition: '200% 0' },
-                '100%': { backgroundPosition: '-200% 0' },
-              },
-              morph: {
-                '0%, 100%': { borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%' },
-                '50%': { borderRadius: '30% 60% 70% 40% / 50% 60% 30% 60%' },
-              },
-              liquid: {
+              liquidMove: {
                 '0%, 100%': { 
                   borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%',
                   transform: 'translate(0px, 0px) scale(1)'
@@ -287,13 +250,6 @@ function wrapIfNeeded(source: string): string {
                   transform: 'translate(-20px, 20px) scale(0.9)'
                 },
               },
-            },
-            backdropBlur: {
-              'xs': '2px',
-            },
-            colors: {
-              'glass': 'rgba(255, 255, 255, 0.1)',
-              'glass-dark': 'rgba(0, 0, 0, 0.1)',
             }
           },
         },
@@ -329,94 +285,128 @@ function wrapIfNeeded(source: string): string {
     
     <script>
       try {
-        // 🎪 Setup global animation libraries
-        window.FramerMotion = window.FramerMotion || {};
-        window.ReactSpring = window.ReactSpring || {};
-        window.LucideReact = window.LucideReact || {};
-        window.HeadlessUI = window.Headless || {};
-        window.toast = window.toast || { toast: function() {} };
-        window.clsx = window.clsx || function(...args) { 
-          return args.filter(Boolean).join(' '); 
-        };
-        
         var SRC = ${JSON.stringify(escaped)};
         
-        // 🔧 Transform imports to work with CDN globals
+        // Create fallback motion library for framer-motion imports
+        var createMotion = function() {
+          return {
+            div: function(props) {
+              var className = props.className || '';
+              var style = props.style || {};
+              var children = props.children;
+              
+              // Add animation classes based on props
+              if (props.animate) {
+                if (props.animate.opacity !== undefined) className += ' animate-fade-in-up';
+                if (props.animate.y !== undefined) className += ' animate-fade-in-up';
+              }
+              if (props.whileHover) className += ' hover:scale-105 transition-transform';
+              
+              return React.createElement('div', {
+                className: className,
+                style: style,
+                onMouseEnter: props.onHoverStart,
+                onMouseLeave: props.onHoverEnd
+              }, children);
+            },
+            span: function(props) {
+              var className = props.className || '';
+              var style = props.style || {};
+              if (props.variants === 'letterVariants') {
+                className += ' animate-stagger';
+                style.animationDelay = (props.custom || 0) * 0.05 + 's';
+              }
+              return React.createElement('span', {
+                className: className,
+                style: style
+              }, props.children);
+            }
+          };
+        };
+        
+        var createAnimatePresence = function() {
+          return function AnimatePresence(props) {
+            return props.children;
+          };
+        };
+        
+        var createUseAnimation = function() {
+          return function useAnimation() {
+            return {
+              start: function() { return Promise.resolve(); }
+            };
+          };
+        };
+
+        // Transform framer-motion imports to use fallbacks
         SRC = SRC
-          // Framer Motion imports
+          .replace(/import\\s+React(?:\\s*,\\s*\\{([^}]+)\\})?\\s+from\\s+['"](react)['"]/g,
+            function(match, hooks) {
+              if (hooks) {
+                return \`const React = window.React; const { \${hooks} } = React;\`;
+              }
+              return 'const React = window.React;';
+            })
           .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](framer-motion)['"]/g, 
-            'const { $1 } = window.FramerMotion || {};')
-          .replace(/import\\s+(\\w+)\\s+from\\s+['"](framer-motion)['"]/g,
-            'const $1 = window.FramerMotion || {};')
-          
-          // React Spring imports  
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](react-spring\\/web|react-spring)['"]/g,
-            'const { $1 } = window.ReactSpring || {};')
-          .replace(/import\\s+(\\w+)\\s+from\\s+['"](react-spring\\/web|react-spring)['"]/g,
-            'const $1 = window.ReactSpring || {};')
-          
-          // Other libraries
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](lucide-react)['"]/g,
-            'const { $1 } = window.LucideReact || {};')
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](clsx)['"]/g,
-            'const { $1 } = { clsx: window.clsx };')
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](@headlessui\\/react)['"]/g,
-            'const { $1 } = window.HeadlessUI || {};')
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](react-hot-toast)['"]/g,
-            'const { $1 } = window.toast || {};');
+            function(match, imports) {
+              var importList = imports.split(',').map(i => i.trim());
+              var declarations = [];
+              
+              importList.forEach(function(imp) {
+                if (imp === 'motion') {
+                  declarations.push('const motion = createMotion();');
+                } else if (imp === 'AnimatePresence') {
+                  declarations.push('const AnimatePresence = createAnimatePresence();');
+                } else if (imp === 'useAnimation') {
+                  declarations.push('const useAnimation = createUseAnimation();');
+                } else {
+                  declarations.push(\`const \${imp} = function() { return {}; };\`);
+                }
+              });
+              
+              return declarations.join(' ');
+            });
         
-        // 🚀 Compile with Babel
-        var compiledJs = Babel.transform(SRC, { 
-          presets: [
-            ['env', { 
-              modules: false, 
-              loose: true,
-              targets: { browsers: ['> 1%', 'last 2 versions'] }
-            }], 
-            'react', 
-            'typescript'
-          ],
-          plugins: [
-            'proposal-class-properties',
-            'transform-object-rest-spread',
-            'transform-optional-chaining',
-            'transform-nullish-coalescing-operator'
-          ]
-        }).code;
+        // Compile with Babel - simplified
+        var compiledJs;
+        try {
+          compiledJs = Babel.transform(SRC, {
+            presets: ['react']
+          }).code;
+        } catch (babelError) {
+          window.showError('Babel transformation failed: ' + babelError.message);
+          throw babelError;
+        }
         
-        // 🎬 Execute the component
+        // Execute the component
         var runner = \`(function(){
           try {
             const module = { exports: {} };
             const exports = module.exports;
             
-            // 🎪 Make animation libraries available
-            const motion = window.FramerMotion || {};
-            const { useSpring, animated, useTransition, useChain, useSpringRef, config } = window.ReactSpring || {};
-            const { AnimatePresence, useAnimation, useMotionValue, useTransform, useScroll } = window.FramerMotion || {};
-            const { toast } = window.toast || { toast: function() {} };
-            const gsap = window.gsap || {};
+            // Provide motion fallbacks
+            const createMotion = \${createMotion.toString()};
+            const createAnimatePresence = \${createAnimatePresence.toString()};
+            const createUseAnimation = \${createUseAnimation.toString()};
             
-            // 🎯 Execute the compiled code
             \${compiledJs}
             
-            // 📤 Export the component
             window.App = module.exports && (module.exports.default || module.exports.App) || window.App;
           } catch(e){ 
-            window.showError('Compilation Error: ' + e.message + '\\n' + e.stack); 
+            window.showError('Component Error: ' + e.message + '\\n' + e.stack); 
             throw e;
           }
         })();\`;
         
-        // 🎭 Run in React context
+        // Run in React context
         (new Function('React', 'ReactDOM', runner))(window.React, window.ReactDOM);
         
-        // 🚨 Validate component exists
+        // Validate component exists
         if (!window.App) {
-          throw new Error('❌ No default export found. Make sure to export a default React component like:\\n\\nexport default function MyComponent() { return <div>Hello</div>; }');
+          throw new Error('❌ No default export found. Make sure to export a default React component.');
         }
         
-        // 🎨 Render the component
+        // Render the component
         var rootEl = document.getElementById('root');
         if (window.ReactDOM.createRoot) {
           var root = window.ReactDOM.createRoot(rootEl);
@@ -425,12 +415,11 @@ function wrapIfNeeded(source: string): string {
           window.ReactDOM.render(window.React.createElement(window.App), rootEl);
         }
         
-        // 🎉 Success message
-        console.log('✅ Enhanced UI rendered successfully with animation support!');
+        console.log('✅ Component rendered successfully with animation fallbacks!');
         
       } catch(e) { 
         window.showError('Runtime Error: ' + e.message);
-        console.error('💥 Enhanced Preview Error:', e);
+        console.error('💥 Preview Error:', e);
       }
     </script>
   </body>
@@ -439,7 +428,7 @@ function wrapIfNeeded(source: string): string {
 
 export default function CodePreview({ code, className }: Props) {
   const srcDoc = useMemo(() => 
-    wrapIfNeeded(code ?? "<div style=\"padding:2rem;text-align:center;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white\"><h1 style=\"font-size:2rem;margin-bottom:1rem\">🎨 Enhanced Preview Ready!</h1><p>Generate an application with framer-motion, react-spring, or advanced CSS animations</p></div>"), 
+    wrapIfNeeded(code ?? "<div style=\"padding:2rem;text-align:center;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white\"><h1 style=\"font-size:2rem;margin-bottom:1rem\">🎨 Enhanced Preview Ready!</h1><p>Generate an application with framer-motion or CSS animations</p></div>"), 
     [code]
   );
   
