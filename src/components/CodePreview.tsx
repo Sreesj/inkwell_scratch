@@ -444,6 +444,16 @@ function wrapIfNeeded(source: string): string {
               return declarations.join(' ');
             });
         
+        // Debug: Check for problematic lines around the error
+        var lines = SRC.split('\\n');
+        console.log('Total lines:', lines.length);
+        if (lines.length > 345) {
+          console.log('Lines 345-355:');
+          for (var i = 345; i < Math.min(355, lines.length); i++) {
+            console.log(i + ':', JSON.stringify(lines[i]));
+          }
+        }
+        
         // Compile with Babel - simplified
         var compiledJs;
         try {
@@ -451,7 +461,9 @@ function wrapIfNeeded(source: string): string {
             presets: ['react']
           }).code;
         } catch (babelError) {
-          window.showError('Babel transformation failed: ' + babelError.message);
+          console.error('Babel error at:', babelError.message);
+          console.error('Problematic code section:', SRC.substring(Math.max(0, SRC.indexOf('logo.svg') - 200), SRC.indexOf('logo.svg') + 200));
+          window.showError('Babel transformation failed: ' + babelError.message + '\\n\\nCheck console for code details');
           throw babelError;
         }
         
