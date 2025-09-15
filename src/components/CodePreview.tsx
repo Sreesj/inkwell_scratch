@@ -186,11 +186,27 @@ function wrapIfNeeded(source: string): string {
         to { transform: rotate(360deg); }
       }
 
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      @keyframes morph {
+        0%, 100% { 
+          border-radius: 40% 60% 70% 30% / 60% 40% 30% 70%; 
+        }
+        50% { 
+          border-radius: 70% 30% 40% 60% / 30% 70% 60% 40%; 
+        }
+      }
+
       .animate-liquid { animation: liquidMove 8s ease-in-out infinite; }
       .animate-fade-in-up { animation: fadeInUp 0.6s ease-out; }
       .animate-stagger { animation: staggerIn 0.6s ease-out; }
       .animate-float { animation: float 3s ease-in-out infinite; }
       .animate-rotate { animation: rotate 2s linear infinite; }
+      .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+      .animate-morph { animation: morph 4s ease-in-out infinite; }
     </style>
     
     <!-- Core React -->
@@ -214,6 +230,7 @@ function wrapIfNeeded(source: string): string {
               'float': 'float 3s ease-in-out infinite',
               'liquid': 'liquidMove 8s ease-in-out infinite',
               'rotate': 'rotate 2s linear infinite',
+              'morph': 'morph 4s ease-in-out infinite',
             },
             keyframes: {
               fadeIn: {
@@ -248,6 +265,14 @@ function wrapIfNeeded(source: string): string {
                 '66%': { 
                   borderRadius: '40% 30% 60% 70% / 40% 60% 50% 30%',
                   transform: 'translate(-20px, 20px) scale(0.9)'
+                },
+              },
+              morph: {
+                '0%, 100%': { 
+                  borderRadius: '40% 60% 70% 30% / 60% 40% 30% 70%' 
+                },
+                '50%': { 
+                  borderRadius: '70% 30% 40% 60% / 30% 70% 60% 40%' 
                 },
               },
             }
@@ -297,10 +322,16 @@ function wrapIfNeeded(source: string): string {
               
               // Add animation classes based on props
               if (props.animate) {
-                if (props.animate.opacity !== undefined) className += ' animate-fade-in-up';
-                if (props.animate.y !== undefined) className += ' animate-fade-in-up';
+                if (props.animate.opacity !== undefined || props.animate.y !== undefined) {
+                  className += ' animate-fade-in-up';
+                }
               }
-              if (props.whileHover) className += ' hover:scale-105 transition-transform';
+              if (props.whileHover) {
+                className += ' hover:scale-105 transition-transform duration-300';
+              }
+              if (props.variants === 'containerVariants') {
+                className += ' animate-fade-in-up';
+              }
               
               return React.createElement('div', {
                 className: className,
@@ -320,6 +351,19 @@ function wrapIfNeeded(source: string): string {
                 className: className,
                 style: style
               }, props.children);
+            },
+            p: function(props) {
+              return React.createElement('p', {
+                className: props.className,
+                style: props.style
+              }, props.children);
+            },
+            button: function(props) {
+              return React.createElement('button', {
+                className: props.className,
+                style: props.style,
+                onClick: props.onClick
+              }, props.children);
             }
           };
         };
@@ -338,16 +382,33 @@ function wrapIfNeeded(source: string): string {
           };
         };
 
-        // Transform framer-motion imports to use fallbacks
+        var createAnimated = function() {
+          return {
+            div: function(props) {
+              return React.createElement('div', props, props.children);
+            },
+            button: function(props) {
+              return React.createElement('button', props, props.children);
+            }
+          };
+        };
+
+        var createUseSpring = function() {
+          return function useSpring(config) {
+            return config.to || config;
+          };
+        };
+
+        // Transform all import statements to use our fallbacks
         SRC = SRC
-          .replace(/import\\s+React(?:\\s*,\\s*\\{([^}]+)\\})?\\s+from\\s+['"](react)['"]/g,
+          .replace(/import\s+React(?:\s*,\s*\{([^}]+)\})?\s+from\s+['"](react)['"];?/g,
             function(match, hooks) {
               if (hooks) {
                 return \`const React = window.React; const { \${hooks} } = React;\`;
               }
               return 'const React = window.React;';
             })
-          .replace(/import\\s+\\{([^}]+)\\}\\s+from\\s+['"](framer-motion)['"]/g, 
+          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](framer-motion)['"];?/g, 
             function(match, imports) {
               var importList = imports.split(',').map(i => i.trim());
               var declarations = [];
@@ -362,6 +423,22 @@ function wrapIfNeeded(source: string): string {
                 } else {
                   declarations.push(\`const \${imp} = function() { return {}; };\`);
                 }
+              });
+              
+              return declarations.join(' ');
+            })
+          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](react-spring)['"];?/g,
+            function(match, imports) {
+              return 'const useSpring = createUseSpring(); const animated = createAnimated();';
+            })
+          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](lucide-react)['"];?/g,
+            function(match, imports) {
+              // Replace Lucide icons with simple div placeholders
+              var importList = imports.split(',').map(i => i.trim());
+              var declarations = [];
+              
+              importList.forEach(function(imp) {
+                declarations.push(\`const \${imp} = function() { return React.createElement('div', {className: 'w-6 h-6 bg-gray-400 rounded'}, '🔲'); };\`);
               });
               
               return declarations.join(' ');
@@ -384,10 +461,12 @@ function wrapIfNeeded(source: string): string {
             const module = { exports: {} };
             const exports = module.exports;
             
-            // Provide motion fallbacks
+            // Provide all fallback functions
             const createMotion = \${createMotion.toString()};
             const createAnimatePresence = \${createAnimatePresence.toString()};
             const createUseAnimation = \${createUseAnimation.toString()};
+            const createAnimated = \${createAnimated.toString()};
+            const createUseSpring = \${createUseSpring.toString()};
             
             \${compiledJs}
             
