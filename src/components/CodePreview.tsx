@@ -111,7 +111,7 @@ function wrapIfNeeded(source: string): string {
   }
   
   // React/JSX - Enhanced with working animation libraries
-  // CRITICAL: Remove ALL import/export statements BEFORE processing
+  // Remove ALL import/export statements BEFORE processing
   const preProcessed = sanitized
     .split('\n')
     .filter(line => {
@@ -135,21 +135,6 @@ function wrapIfNeeded(source: string): string {
       return line;
     })
     .join('\n');
-  
-  // FIXED: Proper string escaping for embedding in script tag
-  function escapeForScript(str: string): string {
-    return str
-      .replace(/\\/g, '\\\\')    // Escape backslashes first
-      .replace(/`/g, '\\`')      // Escape backticks
-      .replace(/\$/g, '\\$')     // Escape dollar signs (template literals)
-      .replace(/\r?\n/g, '\\n')  // Convert newlines to escaped newlines
-      .replace(/\r/g, '\\r')     // Convert carriage returns
-      .replace(/\t/g, '\\t')     // Convert tabs
-      .replace(/'/g, "\\'")      // Escape single quotes
-      .replace(/"/g, '\\"');     // Escape double quotes
-  }
-  
-  const escapedCode = escapeForScript(preProcessed);
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -351,200 +336,137 @@ function wrapIfNeeded(source: string): string {
     <div id="root"></div>
     <div id="errors"></div>
     
-    <script>
-      try {
-        // Use the properly escaped code string
-        var SRC = "${escapedCode}";
-        
-        // Create fallback motion library for framer-motion imports
-        var createMotion = function() {
-          return {
-            div: function(props) {
-              var className = props.className || '';
-              var style = props.style || {};
-              var children = props.children;
-              
-              // Add animation classes based on props
-              if (props.animate) {
-                if (props.animate.opacity !== undefined || props.animate.y !== undefined) {
-                  className += ' animate-fade-in-up';
-                }
-              }
-              if (props.whileHover) {
-                className += ' hover:scale-105 transition-transform duration-300';
-              }
-              if (props.variants === 'containerVariants') {
-                className += ' animate-fade-in-up';
-              }
-              
-              return React.createElement('div', {
-                className: className,
-                style: style,
-                onMouseEnter: props.onHoverStart,
-                onMouseLeave: props.onHoverEnd
-              }, children);
-            },
-            span: function(props) {
-              var className = props.className || '';
-              var style = props.style || {};
-              if (props.variants === 'letterVariants') {
-                className += ' animate-stagger';
-                style.animationDelay = (props.custom || 0) * 0.05 + 's';
-              }
-              return React.createElement('span', {
-                className: className,
-                style: style
-              }, props.children);
-            },
-            p: function(props) {
-              return React.createElement('p', {
-                className: props.className,
-                style: props.style
-              }, props.children);
-            },
-            button: function(props) {
-              return React.createElement('button', {
-                className: props.className,
-                style: props.style,
-                onClick: props.onClick
-              }, props.children);
-            }
-          };
-        };
-        
-        var createAnimatePresence = function() {
-          return function AnimatePresence(props) {
-            return props.children;
-          };
-        };
-        
-        var createUseAnimation = function() {
-          return function useAnimation() {
-            return {
-              start: function() { return Promise.resolve(); }
-            };
-          };
-        };
-
-        var createAnimated = function() {
-          return {
-            div: function(props) {
-              return React.createElement('div', props, props.children);
-            },
-            button: function(props) {
-              return React.createElement('button', props, props.children);
-            }
-          };
-        };
-
-        var createUseSpring = function() {
-          return function useSpring(config) {
-            return config.to || config;
-          };
-        };
-
-        console.log('Processing code with length:', SRC.length);
-        
-        // Add our replacement imports at the very beginning
-        var replacementCode = [
-          '// Auto-generated replacements for imports',
-          'const React = window.React;',
-          'const { useState, useEffect, useRef, useCallback, useMemo } = React;',
-          '',
-          '// Animation library replacements',
-          'const motion = createMotion();',
-          'const AnimatePresence = createAnimatePresence();', 
-          'const useAnimation = createUseAnimation();',
-          'const useSpring = createUseSpring();',
-          'const animated = createAnimated();',
-          '',
-          '// Icon replacements',
-          'const LucideFurniture = () => React.createElement("div", {className: "w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white text-xs"}, "🪑");',
-          'const ChevronDown = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "⬇");',
-          'const Star = () => React.createElement("div", {className: "w-4 h-4 bg-yellow-500 rounded flex items-center justify-center text-white text-xs"}, "⭐");',
-          'const Heart = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "❤");',
-          'const ShoppingCart = () => React.createElement("div", {className: "w-4 h-4 bg-green-500 rounded flex items-center justify-center text-white text-xs"}, "🛒");',
-          'const Menu = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "☰");',
-          'const Search = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "🔍");',
-          'const User = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs"}, "👤");',
-          'const XMarkIcon = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "✕");',
-          'const Dialog = ({ open, onClose, children }) => open ? React.createElement("div", {className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center", onClick: onClose}, React.createElement("div", {className: "bg-white rounded-lg p-6 max-w-md mx-4", onClick: e => e.stopPropagation()}, children)) : null;',
-          '',
-          '// Start of original component code',
-          SRC,
-          '',
-          '// Auto-export the main component',
-          'if (typeof App !== "undefined") { window.App = App; }',
-          'else if (typeof Component !== "undefined") { window.App = Component; }',
-          'else if (typeof FurnitureApp !== "undefined") { window.App = FurnitureApp; }',
-          'else if (typeof HomePage !== "undefined") { window.App = HomePage; }',
-          'else { console.warn("No recognizable component found to export"); }'
-        ].join('\\n');
-        
-        console.log('Final code length:', replacementCode.length);
-        
-        // Compile with Babel - with better error reporting
-        var compiledJs;
-        try {
-          compiledJs = Babel.transform(replacementCode, {
-            presets: ['react'],
-            plugins: []
-          }).code;
-          console.log('✅ Babel compilation successful');
-        } catch (babelError) {
-          console.error('❌ Babel compilation failed');
-          console.error('Error:', babelError.message);
-          console.error('Error location:', babelError.loc);
+    <script type="text/babel">
+      // Create fallback motion library for framer-motion imports
+      const motion = {
+        div: function(props) {
+          const className = props.className || '';
+          const style = props.style || {};
+          const children = props.children;
           
-          window.showError('Code compilation failed: ' + babelError.message + '\\n\\nCheck console for details');
-          throw babelError;
-        }
-        
-        // Execute the component
-        var runner = \`(function(){
-          try {
-            const module = { exports: {} };
-            const exports = module.exports;
-            
-            // Provide all fallback functions
-            const createMotion = \${createMotion.toString()};
-            const createAnimatePresence = \${createAnimatePresence.toString()};
-            const createUseAnimation = \${createUseAnimation.toString()};
-            const createAnimated = \${createAnimated.toString()};
-            const createUseSpring = \${createUseSpring.toString()};
-            
-            \${compiledJs}
-            
-            window.App = module.exports && (module.exports.default || module.exports.App) || window.App;
-          } catch(e){ 
-            window.showError('Component Error: ' + e.message + '\\n' + e.stack); 
-            throw e;
+          // Add animation classes based on props
+          let animationClass = '';
+          if (props.animate) {
+            if (props.animate.opacity !== undefined || props.animate.y !== undefined) {
+              animationClass = ' animate-fade-in-up';
+            }
           }
-        })();\`;
-        
-        // Run in React context
-        (new Function('React', 'ReactDOM', runner))(window.React, window.ReactDOM);
-        
-        // Validate component exists
-        if (!window.App) {
-          throw new Error('❌ No default export found. Make sure to export a default React component.');
+          if (props.whileHover) {
+            animationClass += ' hover:scale-105 transition-transform duration-300';
+          }
+          if (props.variants === 'containerVariants') {
+            animationClass += ' animate-fade-in-up';
+          }
+          
+          return React.createElement('div', {
+            className: className + animationClass,
+            style: style,
+            onMouseEnter: props.onHoverStart,
+            onMouseLeave: props.onHoverEnd
+          }, children);
+        },
+        span: function(props) {
+          const className = props.className || '';
+          const style = props.style || {};
+          if (props.variants === 'letterVariants') {
+            const delay = (props.custom || 0) * 0.05;
+            style.animationDelay = delay + 's';
+            return React.createElement('span', {
+              className: className + ' animate-stagger',
+              style: style
+            }, props.children);
+          }
+          return React.createElement('span', {
+            className: className,
+            style: style
+          }, props.children);
+        },
+        p: function(props) {
+          return React.createElement('p', {
+            className: props.className,
+            style: props.style
+          }, props.children);
+        },
+        button: function(props) {
+          return React.createElement('button', {
+            className: props.className,
+            style: props.style,
+            onClick: props.onClick
+          }, props.children);
         }
+      };
+      
+      const AnimatePresence = function(props) {
+        return props.children;
+      };
+      
+      const useAnimation = function() {
+        return {
+          start: function() { return Promise.resolve(); }
+        };
+      };
+
+      const animated = {
+        div: function(props) {
+          return React.createElement('div', props, props.children);
+        },
+        button: function(props) {
+          return React.createElement('button', props, props.children);
+        }
+      };
+
+      const useSpring = function(config) {
+        return config.to || config;
+      };
+
+      // Add icon replacements
+      const LucideFurniture = () => React.createElement("div", {className: "w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white text-xs"}, "🪑");
+      const ChevronDown = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "⬇");
+      const Star = () => React.createElement("div", {className: "w-4 h-4 bg-yellow-500 rounded flex items-center justify-center text-white text-xs"}, "⭐");
+      const Heart = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "❤");
+      const ShoppingCart = () => React.createElement("div", {className: "w-4 h-4 bg-green-500 rounded flex items-center justify-center text-white text-xs"}, "🛒");
+      const Menu = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "☰");
+      const Search = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "🔍");
+      const User = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs"}, "👤");
+      const XMarkIcon = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "✕");
+      const Dialog = ({ open, onClose, children }) => open ? React.createElement("div", {className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center", onClick: onClose}, React.createElement("div", {className: "bg-white rounded-lg p-6 max-w-md mx-4", onClick: e => e.stopPropagation()}, children)) : null;
+
+      // Your component code starts here
+      ${preProcessed}
+      
+      // Auto-detect and render the main component
+      let MainComponent;
+      
+      if (typeof App !== 'undefined') {
+        MainComponent = App;
+      } else if (typeof Component !== 'undefined') {
+        MainComponent = Component;
+      } else if (typeof FurnitureApp !== 'undefined') {
+        MainComponent = FurnitureApp;
+      } else if (typeof HomePage !== 'undefined') {
+        MainComponent = HomePage;
+      } else if (typeof LoadingScreen !== 'undefined') {
+        MainComponent = LoadingScreen;
+      } else {
+        // Try to find any component-like function
+        const componentNames = Object.keys(window).filter(key => 
+          typeof window[key] === 'function' && 
+          key[0] === key[0].toUpperCase() && 
+          key !== 'React' && key !== 'ReactDOM'
+        );
         
-        // Render the component
-        var rootEl = document.getElementById('root');
-        if (window.ReactDOM.createRoot) {
-          var root = window.ReactDOM.createRoot(rootEl);
-          root.render(window.React.createElement(window.App));
+        if (componentNames.length > 0) {
+          MainComponent = window[componentNames[0]];
         } else {
-          window.ReactDOM.render(window.React.createElement(window.App), rootEl);
+          MainComponent = () => React.createElement('div', {
+            style: { padding: '2rem', textAlign: 'center', color: 'red' }
+          }, 'No React component found to render');
         }
-        
-        console.log('✅ Component rendered successfully with animation fallbacks!');
-        
-      } catch(e) { 
-        window.showError('Runtime Error: ' + e.message);
-        console.error('💥 Preview Error:', e);
       }
+      
+      // Render the component
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(MainComponent));
     </script>
   </body>
 </html>`;
