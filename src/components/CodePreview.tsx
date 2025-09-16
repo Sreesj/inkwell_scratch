@@ -111,7 +111,7 @@ function wrapIfNeeded(source: string): string {
   }
   
   // React/JSX - Enhanced with working animation libraries
-  // CRITICAL: Remove ALL import statements BEFORE JSON stringification
+  // CRITICAL: Remove ALL import statements BEFORE processing
   const preProcessed = sanitized
     .split('\n')
     .filter(line => {
@@ -124,7 +124,21 @@ function wrapIfNeeded(source: string): string {
     })
     .join('\n');
   
-  const escaped = preProcessed.replace(/<\/(script)>/gi, "<\\/$1>");
+  // FIXED: Proper string escaping for embedding in script tag
+  function escapeForScript(str: string): string {
+    return str
+      .replace(/\\/g, '\\\\')    // Escape backslashes first
+      .replace(/`/g, '\\`')      // Escape backticks
+      .replace(/\$/g, '\\$')     // Escape dollar signs (template literals)
+      .replace(/\r?\n/g, '\\n')  // Convert newlines to escaped newlines
+      .replace(/\r/g, '\\r')     // Convert carriage returns
+      .replace(/\t/g, '\\t')     // Convert tabs
+      .replace(/'/g, "\\'")      // Escape single quotes
+      .replace(/"/g, '\\"');     // Escape double quotes
+  }
+  
+  const escapedCode = escapeForScript(preProcessed);
+  
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -327,7 +341,8 @@ function wrapIfNeeded(source: string): string {
     
     <script>
       try {
-        var SRC = ${JSON.stringify(escaped)};
+        // Use the properly escaped code string
+        var SRC = "${escapedCode}";
         
         // Create fallback motion library for framer-motion imports
         var createMotion = function() {
@@ -416,37 +431,7 @@ function wrapIfNeeded(source: string): string {
           };
         };
 
-        // Much more aggressive import removal using multiple methods
-        console.log('Original SRC length:', SRC.length);
-        console.log('First 300 chars:', SRC.substring(0, 300));
-        
-        // Method 1: Regex replacement for all import variations
-        SRC = SRC
-          .replace(/import\s+.*?from\s+['"][^'"]*['"];?\s*/g, '')
-          .replace(/import\s+['"][^'"]*['"];?\s*/g, '')
-          .replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*/g, '')
-          .replace(/import\s+\w+\s*,?\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*/g, '')
-          .replace(/import\s+\w+\s*from\s*['"][^'"]*['"];?\s*/g, '');
-        
-        // Method 2: Line by line filtering
-        var lines = SRC.split('\n');
-        var cleanLines = [];
-        
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i];
-          var trimmed = line.trim();
-          
-          // Skip import lines
-          if (trimmed.startsWith('import ') || trimmed.indexOf('import ') === 0) continue;
-          // Skip markdown content
-          if (trimmed.startsWith('**') || trimmed.startsWith('#')) continue;
-          // Skip file references
-          if (trimmed.match(/\.(svg|png|jpg|jpeg|gif|ico):?$/)) continue;
-          // Skip empty lines at the start
-          if (cleanLines.length === 0 && trimmed === '') continue;
-          
-          cleanLines.push(line);
-        }
+        console.log('Processing code with length:', SRC.length);
         
         // Add our replacement imports at the very beginning
         var replacementCode = [
@@ -472,66 +457,15 @@ function wrapIfNeeded(source: string): string {
           'const User = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs"}, "👤");',
           '',
           '// Start of original component code',
-          ''
-        ];
+          SRC
+        ].join('\\n');
         
-        SRC = replacementCode.concat(cleanLines).join('\n');
-        
-        console.log('Processed SRC length:', SRC.length);
-        console.log('First 500 chars after processing:', SRC.substring(0, 500));
-        
-        // Final safety check: if any imports remain, do emergency cleanup
-        if (SRC.includes('import ')) {
-          console.warn('🔧 Emergency cleanup: imports detected, applying nuclear option');
-          SRC = SRC
-            .split('\\n')
-            .filter(line => !line.trim().match(/^import\\s/))
-            .join('\\n');
-          console.log('After emergency cleanup, imports remaining:', SRC.includes('import '));
-        }
-        
-        // Debug: Check for problematic lines around the error
-        var lines = SRC.split('\\n');
-        console.log('Total lines after all processing:', lines.length);
-        if (lines.length > 345) {
-          console.log('Lines 345-355:');
-          for (var i = 345; i < Math.min(355, lines.length); i++) {
-            console.log(i + ':', JSON.stringify(lines[i]));
-          }
-        }
+        console.log('Final code length:', replacementCode.length);
         
         // Compile with Babel - with better error reporting
         var compiledJs;
         try {
-          // First, let's validate the JavaScript syntax
-          try {
-            new Function(SRC);
-            console.log('✅ JavaScript syntax validation passed');
-          } catch (syntaxError) {
-            console.error('❌ JavaScript syntax validation failed:', syntaxError.message);
-            
-            // Try to find the problematic area
-            var errorMatch = syntaxError.message.match(/line (\\d+)/);
-            if (errorMatch) {
-              var errorLineNum = parseInt(errorMatch[1]);
-              var lines = SRC.split('\\n');
-              console.error('Problematic area around line', errorLineNum + ':');
-              for (var i = Math.max(0, errorLineNum - 3); i < Math.min(lines.length, errorLineNum + 3); i++) {
-                var marker = i === errorLineNum - 1 ? '>>> ' : '    ';
-                console.error(marker + (i + 1) + ':', lines[i]);
-              }
-            }
-            
-            // Show first few lines to debug
-            console.error('First 10 lines of problematic SRC:');
-            SRC.split('\\n').slice(0, 10).forEach(function(line, i) {
-              console.error((i + 1) + ':', line);
-            });
-            
-            throw syntaxError;
-          }
-          
-          compiledJs = Babel.transform(SRC, {
+          compiledJs = Babel.transform(replacementCode, {
             presets: ['react'],
             plugins: []
           }).code;
