@@ -107,7 +107,20 @@ function wrapIfNeeded(source: string): string {
   }
   
   // React/JSX - Enhanced with working animation libraries
-  const escaped = sanitized.replace(/<\/(script)>/gi, "<\\/$1>");
+  // CRITICAL: Remove ALL import statements BEFORE JSON stringification
+  const preProcessed = sanitized
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('import ')) {
+        console.log('🔥 Filtering out import:', trimmed);
+        return false;
+      }
+      return true;
+    })
+    .join('\n');
+  
+  const escaped = preProcessed.replace(/<\/(script)>/gi, "<\\/$1>");
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -399,50 +412,69 @@ function wrapIfNeeded(source: string): string {
           };
         };
 
-        // Transform all import statements to use our fallbacks
+        // Much more aggressive import removal using multiple methods
+        console.log('Original SRC length:', SRC.length);
+        console.log('First 300 chars:', SRC.substring(0, 300));
+        
+        // Method 1: Regex replacement for all import variations
         SRC = SRC
-          .replace(/import\s+React(?:\s*,\s*\{([^}]+)\})?\s+from\s+['"](react)['"];?/g,
-            function(match, hooks) {
-              if (hooks) {
-                return \`const React = window.React; const { \${hooks} } = React;\`;
-              }
-              return 'const React = window.React;';
-            })
-          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](framer-motion)['"];?/g, 
-            function(match, imports) {
-              var importList = imports.split(',').map(i => i.trim());
-              var declarations = [];
-              
-              importList.forEach(function(imp) {
-                if (imp === 'motion') {
-                  declarations.push('const motion = createMotion();');
-                } else if (imp === 'AnimatePresence') {
-                  declarations.push('const AnimatePresence = createAnimatePresence();');
-                } else if (imp === 'useAnimation') {
-                  declarations.push('const useAnimation = createUseAnimation();');
-                } else {
-                  declarations.push(\`const \${imp} = function() { return {}; };\`);
-                }
-              });
-              
-              return declarations.join(' ');
-            })
-          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](react-spring)['"];?/g,
-            function(match, imports) {
-              return 'const useSpring = createUseSpring(); const animated = createAnimated();';
-            })
-          .replace(/import\s+\{([^}]+)\}\s+from\s+['"](lucide-react)['"];?/g,
-            function(match, imports) {
-              // Replace Lucide icons with simple div placeholders
-              var importList = imports.split(',').map(i => i.trim());
-              var declarations = [];
-              
-              importList.forEach(function(imp) {
-                declarations.push(\`const \${imp} = function() { return React.createElement('div', {className: 'w-6 h-6 bg-gray-400 rounded'}, '🔲'); };\`);
-              });
-              
-              return declarations.join(' ');
-            });
+          .replace(/import\s+.*?from\s+['"][^'"]*['"];?\s*/g, '')
+          .replace(/import\s+['"][^'"]*['"];?\s*/g, '')
+          .replace(/import\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*/g, '')
+          .replace(/import\s+\w+\s*,?\s*{[^}]*}\s*from\s*['"][^'"]*['"];?\s*/g, '')
+          .replace(/import\s+\w+\s*from\s*['"][^'"]*['"];?\s*/g, '');
+        
+        // Method 2: Line by line filtering
+        var lines = SRC.split('\n');
+        var cleanLines = [];
+        
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          var trimmed = line.trim();
+          
+          // Skip import lines
+          if (trimmed.startsWith('import ') || trimmed.indexOf('import ') === 0) continue;
+          // Skip markdown content
+          if (trimmed.startsWith('**') || trimmed.startsWith('#')) continue;
+          // Skip file references
+          if (trimmed.match(/\.(svg|png|jpg|jpeg|gif|ico):?$/)) continue;
+          // Skip empty lines at the start
+          if (cleanLines.length === 0 && trimmed === '') continue;
+          
+          cleanLines.push(line);
+        }
+        
+        // Add our replacement imports at the very beginning
+        var replacementCode = [
+          '// Auto-generated replacements for imports',
+          'const React = window.React;',
+          'const { useState, useEffect, useRef, useCallback, useMemo } = React;',
+          '',
+          '// Animation library replacements',
+          'const motion = createMotion();',
+          'const AnimatePresence = createAnimatePresence();', 
+          'const useAnimation = createUseAnimation();',
+          'const useSpring = createUseSpring();',
+          'const animated = createAnimated();',
+          '',
+          '// Icon replacements',
+          'const LucideFurniture = () => React.createElement("div", {className: "w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white text-xs"}, "🪑");',
+          'const ChevronDown = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "⬇");',
+          'const Star = () => React.createElement("div", {className: "w-4 h-4 bg-yellow-500 rounded flex items-center justify-center text-white text-xs"}, "⭐");',
+          'const Heart = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "❤");',
+          'const ShoppingCart = () => React.createElement("div", {className: "w-4 h-4 bg-green-500 rounded flex items-center justify-center text-white text-xs"}, "🛒");',
+          'const Menu = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "☰");',
+          'const Search = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "🔍");',
+          'const User = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs"}, "👤");',
+          '',
+          '// Start of original component code',
+          ''
+        ];
+        
+        SRC = replacementCode.concat(cleanLines).join('\n');
+        
+        console.log('Processed SRC length:', SRC.length);
+        console.log('First 500 chars after processing:', SRC.substring(0, 500));
         
         // Final safety check: if any imports remain, do emergency cleanup
         if (SRC.includes('import ')) {
