@@ -54,13 +54,17 @@ function wrapIfNeeded(source: string): string {
     return html;
   }
   
-  // Sanitize incoming code
+  // Sanitize incoming code more thoroughly
   function sanitize(code: string): string {
     return code
       .replace(/```[\w-]*\n?/g, "")
       .replace(/```/g, "")
-      .replace(/\uFEFF/g, "")
-      .replace(/[\u200B-\u200D\u2060\u00A0]/g, " ")
+      .replace(/\uFEFF/g, "") // BOM
+      .replace(/[\u200B-\u200D\u2060\u00A0]/g, " ") // Various unicode spaces
+      .replace(/[""'']/g, '"') // Normalize quotes
+      .replace(/…/g, '...') // Fix ellipsis
+      .replace(/–/g, '-') // Fix en-dash
+      .replace(/—/g, '--') // Fix em-dash
       .trim();
   }
   
@@ -496,9 +500,37 @@ function wrapIfNeeded(source: string): string {
           }
         }
         
-        // Compile with Babel - simplified
+        // Compile with Babel - with better error reporting
         var compiledJs;
         try {
+          // First, let's validate the JavaScript syntax
+          try {
+            new Function(SRC);
+            console.log('✅ JavaScript syntax validation passed');
+          } catch (syntaxError) {
+            console.error('❌ JavaScript syntax validation failed:', syntaxError.message);
+            
+            // Try to find the problematic area
+            var errorMatch = syntaxError.message.match(/line (\\d+)/);
+            if (errorMatch) {
+              var errorLineNum = parseInt(errorMatch[1]);
+              var lines = SRC.split('\\n');
+              console.error('Problematic area around line', errorLineNum + ':');
+              for (var i = Math.max(0, errorLineNum - 3); i < Math.min(lines.length, errorLineNum + 3); i++) {
+                var marker = i === errorLineNum - 1 ? '>>> ' : '    ';
+                console.error(marker + (i + 1) + ':', lines[i]);
+              }
+            }
+            
+            // Show first few lines to debug
+            console.error('First 10 lines of problematic SRC:');
+            SRC.split('\\n').slice(0, 10).forEach(function(line, i) {
+              console.error((i + 1) + ':', line);
+            });
+            
+            throw syntaxError;
+          }
+          
           compiledJs = Babel.transform(SRC, {
             presets: ['react'],
             plugins: []
@@ -509,17 +541,7 @@ function wrapIfNeeded(source: string): string {
           console.error('Error:', babelError.message);
           console.error('Error location:', babelError.loc);
           
-          // Show the problematic code section
-          var errorLine = babelError.loc ? babelError.loc.line : 349;
-          var startLine = Math.max(0, errorLine - 5);
-          var endLine = Math.min(lines.length, errorLine + 5);
-          console.error('Code around error:');
-          for (var i = startLine; i < endLine; i++) {
-            var marker = i === errorLine - 1 ? '>>> ' : '    ';
-            console.error(marker + (i + 1) + ':', lines[i]);
-          }
-          
-          window.showError('Babel transformation failed at line ' + errorLine + ': ' + babelError.message);
+          window.showError('Code compilation failed: ' + babelError.message + '\\n\\nCheck console for details');
           throw babelError;
         }
         
