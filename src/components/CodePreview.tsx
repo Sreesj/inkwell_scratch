@@ -111,7 +111,7 @@ function wrapIfNeeded(source: string): string {
   }
   
   // React/JSX - Enhanced with working animation libraries
-  // CRITICAL: Remove ALL import statements BEFORE processing
+  // CRITICAL: Remove ALL import/export statements BEFORE processing
   const preProcessed = sanitized
     .split('\n')
     .filter(line => {
@@ -120,7 +120,19 @@ function wrapIfNeeded(source: string): string {
         console.log('🔥 Filtering out import:', trimmed);
         return false;
       }
+      if (trimmed.startsWith('export ')) {
+        console.log('🔥 Filtering out export:', trimmed);
+        return false;
+      }
       return true;
+    })
+    .map(line => {
+      // Handle export default on same line as function/component
+      if (line.includes('export default ')) {
+        console.log('🔥 Converting export default:', line);
+        return line.replace('export default ', '');
+      }
+      return line;
     })
     .join('\n');
   
@@ -455,9 +467,18 @@ function wrapIfNeeded(source: string): string {
           'const Menu = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "☰");',
           'const Search = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded flex items-center justify-center text-white text-xs"}, "🔍");',
           'const User = () => React.createElement("div", {className: "w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center text-white text-xs"}, "👤");',
+          'const XMarkIcon = () => React.createElement("div", {className: "w-4 h-4 bg-red-500 rounded flex items-center justify-center text-white text-xs"}, "✕");',
+          'const Dialog = ({ open, onClose, children }) => open ? React.createElement("div", {className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center", onClick: onClose}, React.createElement("div", {className: "bg-white rounded-lg p-6 max-w-md mx-4", onClick: e => e.stopPropagation()}, children)) : null;',
           '',
           '// Start of original component code',
-          SRC
+          SRC,
+          '',
+          '// Auto-export the main component',
+          'if (typeof App !== "undefined") { window.App = App; }',
+          'else if (typeof Component !== "undefined") { window.App = Component; }',
+          'else if (typeof FurnitureApp !== "undefined") { window.App = FurnitureApp; }',
+          'else if (typeof HomePage !== "undefined") { window.App = HomePage; }',
+          'else { console.warn("No recognizable component found to export"); }'
         ].join('\\n');
         
         console.log('Final code length:', replacementCode.length);
