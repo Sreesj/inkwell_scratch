@@ -389,10 +389,53 @@ export default function UIBuilder() {
                 )
               ) : (
                 <div className="w-full h-full p-4">
-                  <div className="w-full h-full bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg overflow-auto">
-                    <pre className="whitespace-pre-wrap">
-                      {code || JSON.stringify(ui, null, 2)}
+                  <div className="w-full h-full bg-gray-900 text-gray-100 font-mono text-sm p-6 rounded-lg overflow-auto">
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700">
+                      <span className="text-blue-400 font-semibold">
+                        {code ? "📁 App.jsx" : "📋 UI Schema"}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const content = code || JSON.stringify(ui, null, 2);
+                            navigator.clipboard.writeText(content);
+                          }}
+                          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+                        >
+                          Copy
+                        </button>
+                        {code && (
+                          <button
+                            onClick={exportCode}
+                            className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs"
+                          >
+                            Export HTML
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <pre className="whitespace-pre-wrap text-gray-100 leading-relaxed">
+                      <code className="language-javascript">
+                        {code || JSON.stringify(ui, null, 2)}
+                      </code>
                     </pre>
+                    {code && (
+                      <div className="mt-6 p-4 bg-gray-800 rounded border border-gray-700">
+                        <div className="text-yellow-400 text-xs mb-2">💡 About Multi-file Projects:</div>
+                        <div className="text-gray-300 text-xs leading-relaxed">
+                          This is a single-file React component. In real projects, you'd typically split this into:
+                          <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li><span className="text-blue-400">components/</span> - Individual React components</li>
+                            <li><span className="text-green-400">styles/</span> - CSS/Tailwind configuration</li>
+                            <li><span className="text-purple-400">hooks/</span> - Custom React hooks</li>
+                            <li><span className="text-orange-400">utils/</span> - Helper functions</li>
+                          </ul>
+                          <div className="mt-2 pt-2 border-t border-gray-600">
+                            Click "Export HTML" to get a complete standalone version with all dependencies included.
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
