@@ -6,7 +6,8 @@ import CodePreview from "./CodePreview";
 import type { GeneratedUISchema } from "@/types/ui";
 
 type GenerateResponse = {
-  ui: GeneratedUISchema;
+  ui?: GeneratedUISchema;
+  code?: string;
 };
 
 export default function UIBuilder() {
@@ -18,6 +19,7 @@ export default function UIBuilder() {
   const [isSketchMode, setIsSketchMode] = useState<boolean>(false);
   const [sketchData, setSketchData] = useState<Blob | null>(null);
   const [isIntegrating, setIsIntegrating] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview"); // New state for switching views
 
   const hasGenerated = useMemo(() => Boolean(ui || code), [ui, code]);
 
@@ -35,23 +37,32 @@ export default function UIBuilder() {
       
       if (data.code && typeof data.code === "string") {
         const trimmed: string = data.code.trim();
+        // Try to parse as JSON first (UI schema)
         if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
           try {
             const parsed = JSON.parse(trimmed);
             const schema: GeneratedUISchema = parsed.root ? parsed : { root: parsed };
             setUi(schema);
             setCode(null);
+            setViewMode("preview");
             return;
           } catch {
-            // fall through to render as code
+            // If JSON parsing fails, treat as code
+            setCode(data.code);
+            setUi(null);
+            setViewMode("preview"); // Still show preview for React code
+            return;
           }
         }
+        // React/HTML code
         setCode(data.code);
         setUi(null);
+        setViewMode("preview");
       } else if (data.ui) {
         const schema: GeneratedUISchema = data.ui.root ? data.ui : { root: data.ui };
         setUi(schema);
         setCode(null);
+        setViewMode("preview");
       }
     } catch (err) {
       console.error(err);
@@ -66,7 +77,7 @@ export default function UIBuilder() {
 
     // Create the preview HTML
     const previewContent = code || generateUIHTML(ui);
-    const fullHTML = createFullScreenHTML(previewContent, true); // Enable sketch mode
+    const fullHTML = createFullScreenHTML(previewContent, true);
     
     // Open new window
     const newWindow = window.open("", "_blank", "width=1400,height=900,scrollbars=yes,resizable=yes");
@@ -101,12 +112,26 @@ export default function UIBuilder() {
   const exportCode = useCallback(() => {
     if (!hasGenerated) return;
     
-    const content = code || generateUIHTML(ui);
+    let content: string;
+    let filename: string;
+    
+    if (code) {
+      // If we have React code, wrap it in a complete HTML structure
+      content = wrapReactCodeForExport(code);
+      filename = 'generated-react-app.html';
+    } else if (ui) {
+      // Convert UI schema to HTML
+      content = generateUIHTML(ui);
+      filename = 'generated-ui.html';
+    } else {
+      return;
+    }
+    
     const blob = new Blob([content], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'generated-ui.html';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -136,18 +161,22 @@ export default function UIBuilder() {
             const schema: GeneratedUISchema = parsed.root ? parsed : { root: parsed };
             setUi(schema);
             setCode(null);
+            setViewMode("preview");
           } catch {
             setCode(data.code);
             setUi(null);
+            setViewMode("preview");
           }
         } else {
           setCode(data.code);
           setUi(null);
+          setViewMode("preview");
         }
       } else if (data.ui) {
         const schema: GeneratedUISchema = data.ui.root ? data.ui : { root: data.ui };
         setUi(schema);
         setCode(null);
+        setViewMode("preview");
       }
       
       setSketchData(null);
@@ -243,6 +272,30 @@ export default function UIBuilder() {
                   </svg>
                   Export Code
                 </button>
+
+                {/* View Mode Toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      viewMode === "preview" 
+                        ? "bg-blue-100 border-blue-200 text-blue-700" 
+                        : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setViewMode("code")}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      viewMode === "code" 
+                        ? "bg-blue-100 border-blue-200 text-blue-700" 
+                        : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    View Code
+                  </button>
+                </div>
               </>
             )}
 
@@ -300,6 +353,7 @@ export default function UIBuilder() {
             <ol className="list-decimal list-inside space-y-1">
               <li>Write a detailed prompt describing your UI vision</li>
               <li>Click "Generate UI" to create the initial version</li>
+              <li>Use "Preview/View Code" buttons to switch views</li>
               <li>Click "Open Full Preview" to see it in a new tab</li>
               <li>Use the sketch tools in the preview tab to draw changes</li>
               <li>Return here and click "Integrate New Sketch" to apply changes</li>
@@ -308,7 +362,7 @@ export default function UIBuilder() {
           </div>
         </div>
 
-        {/* Right: Small Preview */}
+        {/* Right: Preview Panel */}
         <div className="relative rounded-xl border border-black/10 dark:border-white/15 overflow-hidden shadow-sm bg-gray-50 dark:bg-neutral-800">
           {!hasGenerated ? (
             <div className="h-full flex items-center justify-center">
@@ -320,18 +374,31 @@ export default function UIBuilder() {
               </div>
             </div>
           ) : (
-            <div className="absolute inset-0 p-4">
-              <div className="w-full h-full bg-white rounded-lg shadow-inner overflow-hidden">
-                {code ? (
-                  <CodePreview code={code} className="w-full h-full scale-75 origin-top-left" />
-                ) : (
-                  <div className="transform scale-75 origin-top-left w-[133.33%] h-[133.33%]">
-                    <GeneratedUIRenderer ui={ui} />
+            <div className="absolute inset-0">
+              {viewMode === "preview" ? (
+                code ? (
+                  <div className="w-full h-full">
+                    <CodePreview code={code} className="w-full h-full" />
                   </div>
-                )}
-              </div>
-              <div className="absolute top-6 right-6 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                Preview (scaled)
+                ) : (
+                  <div className="w-full h-full p-4">
+                    <div className="w-full h-full bg-white rounded-lg shadow-inner overflow-auto">
+                      <GeneratedUIRenderer ui={ui} />
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full p-4">
+                  <div className="w-full h-full bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg overflow-auto">
+                    <pre className="whitespace-pre-wrap">
+                      {code || JSON.stringify(ui, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+              
+              <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                {viewMode === "preview" ? "Live Preview" : "Source Code"}
               </div>
             </div>
           )}
@@ -343,22 +410,94 @@ export default function UIBuilder() {
 
 // Helper function to generate HTML from UI schema
 function generateUIHTML(ui: GeneratedUISchema | null): string {
-  if (!ui) return "";
-  // This would use your existing GeneratedUIRenderer logic
-  // For now, return a placeholder
-  return "<div>UI Schema Rendering...</div>";
+  if (!ui) return "<div>No UI generated</div>";
+  
+  // Convert UI schema to basic HTML
+  function elementToHtml(element: any): string {
+    const className = element.className || '';
+    const style = element.style ? Object.entries(element.style)
+      .map(([key, value]) => `${key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)}: ${value}`)
+      .join('; ') : '';
+    
+    switch (element.type) {
+      case 'container':
+      case 'card':
+        const children = element.children ? 
+          element.children.map(elementToHtml).join('') : '';
+        return `<div class="${className}" style="${style}">${children}</div>`;
+      case 'text':
+        return element.href ? 
+          `<a href="${element.href}" class="${className}" style="${style}">${element.text || ''}</a>` :
+          `<p class="${className}" style="${style}">${element.text || ''}</p>`;
+      case 'button':
+        return `<button class="${className}" style="${style}">${element.text || 'Button'}</button>`;
+      case 'image':
+        return `<img src="${element.src || '/images/placeholder'}" alt="${element.text || 'image'}" class="${className}" style="${style}">`;
+      case 'input':
+        return `<input placeholder="${element.placeholder || ''}" class="${className}" style="${style}">`;
+      default:
+        return '';
+    }
+  }
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Generated UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    ${elementToHtml(ui.root)}
+</body>
+</html>`;
+}
+
+// Helper function to wrap React code for export
+function wrapReactCodeForExport(reactCode: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Generated React App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+      ${reactCode.replace(/import\s+.*?from\s+['"].*?['"];?\s*/g, '')
+                 .replace(/export\s+default\s+/g, '')}
+      
+      // Render the component
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(App || Component || FurnitureApp || HomePage || (() => React.createElement('div', {}, 'Component not found'))));
+    </script>
+</body>
+</html>`;
 }
 
 // Helper function to create full-screen HTML with sketch overlay
 function createFullScreenHTML(content: string, enableSketch: boolean = false): string {
   const sketchScript = enableSketch ? `
     <script>
-      // Sketch functionality will be injected here
       let isDrawing = false;
       let canvas, ctx;
       
       window.addEventListener('load', function() {
-        // Create sketch overlay
         canvas = document.createElement('canvas');
         canvas.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:10000;pointer-events:none;';
         document.body.appendChild(canvas);
@@ -367,7 +506,6 @@ function createFullScreenHTML(content: string, enableSketch: boolean = false): s
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         
-        // Add sketch controls
         const controls = document.createElement('div');
         controls.innerHTML = \`
           <button onclick="toggleSketch()" style="position:fixed;top:20px;right:20px;z-index:10001;padding:10px;background:#007bff;color:white;border:none;border-radius:5px;cursor:pointer;">✏️ Toggle Sketch</button>
@@ -392,7 +530,6 @@ function createFullScreenHTML(content: string, enableSketch: boolean = false): s
         });
       }
       
-      // Drawing logic
       canvas.addEventListener('mousedown', startDraw);
       canvas.addEventListener('mousemove', draw);
       canvas.addEventListener('mouseup', stopDraw);
@@ -420,7 +557,13 @@ function createFullScreenHTML(content: string, enableSketch: boolean = false): s
     </script>
   ` : '';
 
-  return `<!DOCTYPE html>
+  // If content looks like React code, wrap it properly
+  if (content && (content.includes('import React') || content.includes('const ') && content.includes('useState'))) {
+    content = wrapReactCodeForExport(content);
+  }
+
+  return content.includes('<!DOCTYPE html') ? content + sketchScript : 
+  `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -428,7 +571,6 @@ function createFullScreenHTML(content: string, enableSketch: boolean = false): s
     <title>Full Preview - Inkwell</title>
     <style>
       html, body { margin: 0; padding: 0; width: 100%; height: 100vh; overflow: auto; }
-      * { box-sizing: border-box; }
     </style>
 </head>
 <body>
